@@ -17,11 +17,10 @@ fun Application.module() {
         koin.setProperty("postgres.user", environment.config.property("postgres.user").getString())
         koin.setProperty("postgres.password", environment.config.property("postgres.password").getString())
     }
-
+    configureKoin()
 
     configureSecurity()
     configureSerialization()
-    configureKoin()
     configureMonitoring()
     configureHTTP()
     configureRegistrationRouting()

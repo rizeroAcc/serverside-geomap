@@ -17,7 +17,6 @@ fun Application.configureSecurity() {
     val pgSessionStorage : SessionStorage by inject()
     install(Sessions) {
         header<APISession>("Authorization", storage = pgSessionStorage) {
-
         }
     }
     install(Authentication) {
@@ -36,4 +35,4 @@ fun Application.configureSecurity() {
     }
 }
 @Serializable
-data class APISession(val phone : String, val username : String,val expireAt : Long)
+data class APISession(val phone : String,val expireAt : Long)
