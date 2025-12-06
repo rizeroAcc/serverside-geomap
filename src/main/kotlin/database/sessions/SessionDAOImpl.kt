@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
 
 class SessionDAOImpl(val database: Database) : SessionDAO {
-    override suspend fun upsert(id: String, value: String) {
+    override suspend fun upsert(id: String, value: String, phone: String) {
         transaction(database) {
             SessionTable.upsert(
                 onUpdate = {
@@ -19,6 +19,7 @@ class SessionDAOImpl(val database: Database) : SessionDAO {
             ){
                 it[SessionTable.id] = id
                 it[SessionTable.data] = value
+                it[SessionTable.phone] = phone
             }
         }
     }
@@ -36,6 +37,12 @@ class SessionDAOImpl(val database: Database) : SessionDAO {
         }
         return row?.let {
             it[data]
+        }
+    }
+
+    override suspend fun deleteAllUserSessions(phone: String) {
+        transaction(database) {
+            SessionTable.deleteWhere { SessionTable.phone eq phone }
         }
     }
 

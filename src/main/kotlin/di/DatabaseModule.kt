@@ -10,5 +10,6 @@ val databaseModule = module {
             driver = "org.postgresql.Driver",
             user = getKoin().getProperty("postgres.user")!!,
             password = getKoin().getProperty("postgres.password")!!,
-    ) }
+        )
+    }
 }

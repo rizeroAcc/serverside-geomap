@@ -13,12 +13,14 @@ class UserRepository(val userDAO: UserDAO) {
             return Result.failure(Exception("User already exists"))
         }
     }
-    suspend fun isAuthorizationValid(user : UserDTO) : Boolean{
-        val existingUser = userDAO.getUserByPhone(user.phone)
-        if (existingUser == null){
-            return false
-        }else{
-            return existingUser.passwordHash == user.passwordHash
+    suspend fun getUserWithCredentials(userCredentials : UserDTO) : UserDTO?{
+        val existingUser = userDAO.getUserByPhone(userCredentials.phone)
+        return existingUser?.let {
+            if (it.passwordHash == userCredentials.passwordHash){
+                it
+            }else{
+                null
+            }
         }
     }
 }

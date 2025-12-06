@@ -1,19 +1,16 @@
 package com.mapprjct.feature.authentication.sessions
 
+import com.mapprjct.database.sessions.APISession
 import com.mapprjct.database.dao.SessionDAO
-import com.mapprjct.database.sessions.SessionTable
-import com.mapprjct.database.sessions.SessionTable.data
 import io.ktor.server.sessions.SessionStorage
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.insertIgnore
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
+import kotlinx.serialization.json.Json
 
 
 class PostgresSessionStorage (val sessionDAO: SessionDAO) : SessionStorage {
     override suspend fun write(id: String, value: String) {
-        sessionDAO.upsert(id = id, value = value)
+        val phone = Json.decodeFromString<APISession>(value).phone
+        sessionDAO.deleteAllUserSessions(phone)
+        sessionDAO.upsert(id = id, value = value, phone = phone)
     }
 
     override suspend fun invalidate(id: String) {

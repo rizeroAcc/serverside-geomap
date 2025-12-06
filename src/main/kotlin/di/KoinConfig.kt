@@ -14,6 +14,9 @@ import org.koin.logger.slf4jLogger
 
 fun Application.configureKoin() {
     install(Koin) {
+        koin.setProperty("postgres.url", environment.config.property("postgres.url").getString())
+        koin.setProperty("postgres.user", environment.config.property("postgres.user").getString())
+        koin.setProperty("postgres.password", environment.config.property("postgres.password").getString())
         slf4jLogger()
         modules(databaseModule,
             module {

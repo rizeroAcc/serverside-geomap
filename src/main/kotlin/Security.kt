@@ -1,5 +1,6 @@
 package com.mapprjct
 
+import com.mapprjct.database.sessions.APISession
 import com.mapprjct.feature.authentication.sessions.PostgresSessionStorage
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
@@ -17,6 +18,7 @@ fun Application.configureSecurity() {
     val pgSessionStorage : SessionStorage by inject()
     install(Sessions) {
         header<APISession>("Authorization", storage = pgSessionStorage) {
+
         }
     }
     install(Authentication) {
@@ -34,5 +36,3 @@ fun Application.configureSecurity() {
         }
     }
 }
-@Serializable
-data class APISession(val phone : String,val expireAt : Long)
