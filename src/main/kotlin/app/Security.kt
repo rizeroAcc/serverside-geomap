@@ -20,7 +20,7 @@ fun Application.configureSecurity() {
         }
     }
     install(Authentication) {
-        session<APISession> {
+        session<APISession>("auth-session"){
             validate { session ->
                 if (session.expireAt > System.currentTimeMillis()){
                     session
@@ -29,7 +29,7 @@ fun Application.configureSecurity() {
                 }
             }
             challenge {
-                call.respond(HttpStatusCode.Unauthorized, message = "Token expired")
+                call.respond(HttpStatusCode.Unauthorized, message = "Token invalid or expired")
             }
         }
     }

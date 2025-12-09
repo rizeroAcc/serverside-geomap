@@ -13,7 +13,6 @@ data class RegistrationRequest(
 fun RegistrationRequest.toUserCredentialsDto() : UserCredentials{
     return UserCredentials(
         phone = phone,
-        username = username,
-        passwordHash = password
+        password = password
     )
 }

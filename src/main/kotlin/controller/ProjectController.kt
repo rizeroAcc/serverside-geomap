@@ -1,7 +1,7 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.daoimpl.ProjectDAOImpl
-import com.mapprjct.dto.ProjectDTO
+import com.mapprjct.dto.Project
 import com.mapprjct.dto.APISession
 import com.mapprjct.dto.User
 import com.mapprjct.request.CreateProjectRequest
@@ -17,7 +17,7 @@ import io.ktor.server.sessions.get
 import io.ktor.server.sessions.sessions
 import org.koin.ktor.ext.inject
 
-fun Application.configureProjects() {
+fun Application.configureProjectsController() {
     val projectDAOImpl : ProjectDAOImpl by inject()
     routing() {
         route("/projects") {
@@ -28,9 +28,9 @@ fun Application.configureProjects() {
                 }
                 val userPhone = session!!.phone
                 val request = call.receive<CreateProjectRequest>()
-                val newProject = projectDAOImpl.createProject(creatorPhone = userPhone, projectDTO = ProjectDTO(
+                val newProject = projectDAOImpl.createProject(creatorPhone = userPhone, project = Project(
                         name = request.projectName,
-                        projectId = ""
+                        projectID = ""
                     )
                 )
                 if (newProject != null) {
@@ -48,6 +48,7 @@ fun Application.configureProjects() {
                 val userPhone = session!!.phone
                 val projects = projectDAOImpl.getAllUserProjects(User(
                     phone = userPhone,
+                    username = ""
                 ))
                 call.respond(HttpStatusCode.OK, message = projects)
             }

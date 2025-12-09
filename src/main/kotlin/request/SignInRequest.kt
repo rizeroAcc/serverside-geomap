@@ -13,7 +13,6 @@ data class SignInRequest(
 fun SignInRequest.toUserCredentialsDTO() : UserCredentials {
     return UserCredentials(
         phone = phone,
-        passwordHash = password,
-        username = ""
+        password = password,
     )
 }

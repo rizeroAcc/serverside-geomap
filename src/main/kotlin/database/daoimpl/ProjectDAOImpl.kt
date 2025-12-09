@@ -3,7 +3,7 @@ package com.mapprjct.database.daoimpl
 import com.mapprjct.database.dao.ProjectDAO
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
-import com.mapprjct.dto.ProjectDTO
+import com.mapprjct.dto.Project
 import com.mapprjct.dto.User
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
 class ProjectDAOImpl(val database: Database) : ProjectDAO {
-    override suspend fun getAllUserProjects(user: User): List<ProjectDTO> {
+    override suspend fun getAllUserProjects(user: User): List<Project> {
         return try {
             transaction(database) {
                 (ProjectUsersTable innerJoin ProjectTable)
@@ -20,8 +20,8 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
                         ProjectUsersTable.userPhone eq user.phone
                     }
                     .map { result ->
-                        ProjectDTO(
-                            projectId = result[ProjectTable.id].toString(),
+                        Project(
+                            projectID = result[ProjectTable.id].toString(),
                             name = result[ProjectTable.name]
                         )
                     }
@@ -34,13 +34,13 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
 
     override suspend fun createProject(
         creatorPhone: String,
-        projectDTO: ProjectDTO
-    ): ProjectDTO? {
+        project: Project
+    ): Project? {
         return try {
             val newProjectUUID = UUID.randomUUID()
             transaction(database) {
                 ProjectTable.insert {
-                    it[ProjectTable.name] = projectDTO.name
+                    it[ProjectTable.name] = project.name
                     it[ProjectTable.id] = newProjectUUID
                 }
                 ProjectUsersTable.insert {
@@ -49,9 +49,9 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
                     it[ProjectUsersTable.role] = 1
                 }
             }
-            return ProjectDTO(
-                projectId = newProjectUUID.toString(),
-                name = projectDTO.name,
+            return Project(
+                projectID = newProjectUUID.toString(),
+                name = project.name,
             )
         }catch (e: Exception){
             e.printStackTrace()

@@ -7,13 +7,15 @@ import com.mapprjct.dto.UserCredentials
 
 class UserRepository(val userDAO: UserDAO) {
 
-    suspend fun createUser(user : UserCredentials) : Result<UserCredentials>{
+
+
+    suspend fun createUser(userCredentials : UserCredentials, username : String) : Result<UserCredentials>{
         //todo validate phone
         //todo hash password
-        val existingUser = userDAO.getUser(user.phone)
+        val existingUser = userDAO.getUser(userCredentials.phone)
         if (existingUser == null){
-            userDAO.insert(user)
-            return Result.success(user)
+            userDAO.insert(userCredentials = userCredentials, username = username)
+            return Result.success(userCredentials)
         }else{
             return Result.failure(ElementAlreadyExistsException("User already exists"))
         }
@@ -22,12 +24,16 @@ class UserRepository(val userDAO: UserDAO) {
     suspend fun getUserCredentials(userCredentials : UserCredentials) : UserCredentials?{
         val existingUser = userDAO.getUserCredentials(userCredentials.phone)
         return existingUser?.let {
-            if (it.passwordHash == userCredentials.passwordHash){
+            if (it.password == userCredentials.password){
                 it
             }else{
                 null
             }
         }
+    }
+    suspend fun validateCredentials(userCredentials : UserCredentials): Boolean {
+        val existingUser = userDAO.getUserCredentials(userCredentials.phone)
+        return existingUser != null && existingUser.password == userCredentials.password
     }
     suspend fun getUser(userPhone : String) : User?{
         val existingUser = userDAO.getUser(userPhone)

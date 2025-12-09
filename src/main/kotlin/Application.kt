@@ -6,9 +6,9 @@ import com.mapprjct.app.configureMonitoring
 import com.mapprjct.app.configureSecurity
 import com.mapprjct.app.configureSerialization
 import com.mapprjct.di.configureKoin
-import com.mapprjct.controller.configureAuthenticationRouting
+import com.mapprjct.controller.configureAuthenticationController
 import com.mapprjct.controller.configureProfileController
-import com.mapprjct.controller.configureProjects
+import com.mapprjct.controller.configureProjectsController
 import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 
@@ -23,8 +23,8 @@ fun Application.module() {
     configureMonitoring()
     configureHTTP()
     configureStaticContent()
-    configureAuthenticationRouting()
-    configureProjects()
+    configureAuthenticationController()
+    configureProjectsController()
     configureProfileController()
     configureDBTables()
 }

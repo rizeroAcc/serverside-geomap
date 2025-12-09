@@ -1,19 +1,19 @@
 package com.mapprjct.repository
 
 import com.mapprjct.database.dao.ProjectDAO
-import com.mapprjct.dto.ProjectDTO
+import com.mapprjct.dto.Project
 
 class ProjectRepository(val projectDAO: ProjectDAO) {
-    suspend fun deleteProject(userPhone : String, projectDTO: ProjectDTO) : Result<Boolean> {
+    suspend fun deleteProject(userPhone : String, project: Project) : Result<Boolean> {
         TODO()
     }
-    suspend fun createProject(creatorPhone : String, projectDTO : ProjectDTO) : Result<ProjectDTO> {
+    suspend fun createProject(creatorPhone : String, project : Project) : Result<Project> {
         TODO()
     }
-    suspend fun updateProject(userPhone: String, projectDTO : ProjectDTO) : Result<ProjectDTO> {
+    suspend fun updateProject(userPhone: String, project : Project) : Result<Project> {
         TODO()
     }
-    suspend fun getProject(userPhone : String) : Result<ProjectDTO> {
+    suspend fun getProject(userPhone : String) : Result<Project> {
         TODO()
     }
 }

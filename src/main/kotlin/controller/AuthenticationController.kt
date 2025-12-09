@@ -19,26 +19,29 @@ import kotlinx.datetime.Clock
 import org.koin.ktor.ext.inject
 import kotlin.getValue
 
-fun Application.configureAuthenticationRouting() {
+fun Application.configureAuthenticationController() {
     val userRepository: UserRepository by inject()
     val sessionStorage by inject<SessionStorage>()
     routing{
         post("/signin") {
             val request = call.receive<SignInRequest>()
-            val user = userRepository.getUserCredentials(request.toUserCredentialsDTO())
-            if (user != null){
-                val session = APISession(
-                    phone = user.phone,
-                    expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
-                )
-                call.sessions.set("Authorization",session)
-                call.respond(HttpStatusCode.OK, SignInResponse(
-                    username = user.username,
-                    phone = user.phone,
-                ))
-            }else{
+            if (!userRepository.validateCredentials(request.toUserCredentialsDTO())){
                 call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
+            //User never be null if credentials correct
+            val user = userRepository.getUser(request.phone)!!
+            val session = APISession(
+                phone = user.phone ,
+                expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
+            )
+            call.sessions.set("Authorization" , session)
+            call.respond(
+                HttpStatusCode.OK , SignInResponse(
+                    username = user.username ,
+                    phone = user.phone ,
+                )
+            )
+
         }
         post("/logout") {
             val sessionId = call.request.headers["Authorization"]
@@ -51,7 +54,10 @@ fun Application.configureAuthenticationRouting() {
         }
         post("/register"){
             val registrationRequest = call.receive<RegistrationRequest>()
-            val registrationResult = userRepository.createUser(registrationRequest.toUserCredentialsDto())
+            val registrationResult = userRepository.createUser(
+                userCredentials = registrationRequest.toUserCredentialsDto(),
+                username = registrationRequest.username
+            )
             registrationResult.fold(
                 onSuccess = { user->
                     call.respond(HttpStatusCode.OK, "Created")

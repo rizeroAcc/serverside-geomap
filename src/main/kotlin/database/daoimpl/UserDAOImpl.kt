@@ -6,20 +6,19 @@ import com.mapprjct.dto.UserCredentials
 import com.mapprjct.dto.User
 import com.mapprjct.truncatePhone
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 class UserDAOImpl(val database: Database) : UserDAO {
-    override suspend fun insert(user : UserCredentials) : Int{
+    override suspend fun insert(userCredentials : UserCredentials, username : String) : Int{
         try {
             transaction(database) {
                 UserTable.insert {
-                    it[phone] = user.phone.truncatePhone()
-                    it[username] = user.username
-                    it[passwordHash] = user.passwordHash
+                    it[phone] = userCredentials.phone.truncatePhone()
+                    it[UserTable.username] = username
+                    it[passwordHash] = userCredentials.password
                 }
             }
             return 1
@@ -48,8 +47,7 @@ class UserDAOImpl(val database: Database) : UserDAO {
         }?.let {
             UserCredentials(
                 phone = it[UserTable.phone] ,
-                username = it[UserTable.username] ,
-                passwordHash = it[UserTable.passwordHash]
+                password = it[UserTable.passwordHash]
             )
         }
     }
