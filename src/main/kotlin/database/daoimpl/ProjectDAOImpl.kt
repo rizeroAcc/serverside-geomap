@@ -34,13 +34,13 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
 
     override suspend fun createProject(
         creatorPhone: String,
-        project: Project
+        projectName: String
     ): Project? {
         return try {
             val newProjectUUID = UUID.randomUUID()
             transaction(database) {
                 ProjectTable.insert {
-                    it[ProjectTable.name] = project.name
+                    it[ProjectTable.name] = projectName
                     it[ProjectTable.id] = newProjectUUID
                 }
                 ProjectUsersTable.insert {
@@ -51,7 +51,7 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
             }
             return Project(
                 projectID = newProjectUUID.toString(),
-                name = project.name,
+                name = projectName,
             )
         }catch (e: Exception){
             e.printStackTrace()

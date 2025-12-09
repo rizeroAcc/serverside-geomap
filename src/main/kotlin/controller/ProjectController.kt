@@ -7,6 +7,8 @@ import com.mapprjct.dto.User
 import com.mapprjct.request.CreateProjectRequest
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
@@ -20,38 +22,34 @@ import org.koin.ktor.ext.inject
 fun Application.configureProjectsController() {
     val projectDAOImpl : ProjectDAOImpl by inject()
     routing() {
-        route("/projects") {
-            post("/create") {
-                val session = call.sessions.get<APISession>()
-                if (session == null) {
-                    call.respond(status = HttpStatusCode.Unauthorized, message = "Unauthorized")
-                }
-                val userPhone = session!!.phone
-                val request = call.receive<CreateProjectRequest>()
-                val newProject = projectDAOImpl.createProject(creatorPhone = userPhone, project = Project(
-                        name = request.projectName,
-                        projectID = ""
+        authenticate("auth-session") {
+            route("/projects") {
+                post("/create") {
+                    val session = call.principal<APISession>()!!
+                    val userPhone = session.phone
+                    val request = call.receive<CreateProjectRequest>()
+                    val newProject = projectDAOImpl.createProject(
+                        creatorPhone = userPhone,
+                        projectName = request.projectName
                     )
-                )
-                if (newProject != null) {
-                    call.respond(status = HttpStatusCode.Created, message = newProject)
-                }else{
-                    call.respond(status = HttpStatusCode.Conflict, message = "Project already exists")
-                }
+                    if (newProject != null) {
+                        call.respond(status = HttpStatusCode.Created, message = newProject)
+                    }else{
+                        call.respond(status = HttpStatusCode.Conflict, message = "Project already exists")
+                    }
 
-            }
-            get("/") {
-                val session = call.sessions.get<APISession>()
-                if (session == null) {
-                    call.respond(status = HttpStatusCode.Unauthorized, message = "Unauthorized")
                 }
-                val userPhone = session!!.phone
-                val projects = projectDAOImpl.getAllUserProjects(User(
-                    phone = userPhone,
-                    username = ""
-                ))
-                call.respond(HttpStatusCode.OK, message = projects)
+                get("/") {
+                    val session = call.principal<APISession>()!!
+                    val userPhone = session.phone
+                    val projects = projectDAOImpl.getAllUserProjects(User(
+                        phone = userPhone,
+                        username = ""
+                    ))
+                    call.respond(HttpStatusCode.OK, message = projects)
+                }
             }
         }
+
     }
 }
