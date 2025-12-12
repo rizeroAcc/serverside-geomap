@@ -5,5 +5,5 @@ import com.mapprjct.dto.User
 
 interface ProjectDAO {
     suspend fun getAllUserProjects(user: User) : List<Project>
-    suspend fun createProject(creatorPhone : String, project: Project) : Project?
+    suspend fun createProject(creatorPhone : String, projectName: String) : Project?
 }

@@ -43,34 +43,22 @@ fun Application.configureProfileController() {
                         multipart.forEachPart { part ->
                             when (part) {
                                 is PartData.FileItem -> {
-
-                                    val allowedExtensions = setOf("jpg", "jpeg", "png")
                                     val originalFileName = part.originalFileName as String
                                     val fileExtension = originalFileName.substringAfterLast('.').lowercase()
-
-                                    if (!allowedExtensions.contains(fileExtension)) {
+                                    if (!fileIsImage(originalFileName)) {
                                         throw IllegalArgumentException("Allowed formats: jpg, png")
                                     }
 
                                     // Генерация имени файла
                                     val fileName = "${session.phone}_avatar.$fileExtension"
-                                    val uploadDir = File("api/uploads/avatars")
-
-                                    if (!uploadDir.exists()) {
-                                        uploadDir.mkdirs()
-                                    }
+                                    val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
 
                                     val oldAvatarPath = userRepository.getUser(session.phone)?.avatar
-                                    oldAvatarPath?.let { oldFileName ->
-                                        val oldFile = File(uploadDir, oldFileName)
-                                        if (oldFile.exists()) {
-                                            oldFile.delete()
-                                        }
-                                    }
+                                    removeOldFile(uploadDir,oldAvatarPath)
 
-                                    // Сохраняем новый файл
+                                    // Create new file
                                     val targetFile = File(uploadDir, fileName)
-
+                                    //Write image
                                     part.provider().copyAndClose((targetFile.writeChannel()))
 
                                     // Обновляем в базе данных
@@ -92,11 +80,9 @@ fun Application.configureProfileController() {
                         }
 
                         call.respond(
-                            HttpStatusCode.OK,
+                            HttpStatusCode.Accepted,
                             AvatarUpdateResponse(
-                                success = true,
                                 avatarUrl = "/api/avatars/$avatarFileName",
-                                message = "Avatar uploaded successfully"
                             )
                         )
 
@@ -111,4 +97,22 @@ fun Application.configureProfileController() {
     }
 }
 
+fun fileIsImage(filename : String) : Boolean {
+    return filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
+}
+fun getOrCreateUploadDirectory(relatePath : String) : File {
+    val directory = File(relatePath)
+    if (!directory.exists()) {
+        directory.mkdirs()
+    }
+    return directory
+}
 
+fun removeOldFile(directory : File, oldFilename : String?) {
+    oldFilename?.let { oldFileName ->
+        val oldFile = File(directory, oldFileName)
+        if (oldFile.exists()) {
+            oldFile.delete()
+        }
+    }
+}
