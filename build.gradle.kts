@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation("io.ktor:ktor-serialization-gson:3.3.2")
     implementation("io.ktor:ktor-server-sessions:3.3.2")
+    implementation("io.ktor:ktor-server-partial-content:3.3.2")
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
 }

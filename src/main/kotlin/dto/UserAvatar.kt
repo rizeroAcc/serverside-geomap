@@ -1,5 +1,5 @@
 package com.mapprjct.dto
 
-data class UserAvatar(
+data class Avatar(
     val path : String,
 )

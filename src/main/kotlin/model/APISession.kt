@@ -1,4 +1,4 @@
-package com.mapprjct.dto
+package com.mapprjct.model
 
 import kotlinx.serialization.Serializable
 

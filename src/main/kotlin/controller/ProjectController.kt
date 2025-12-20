@@ -1,7 +1,7 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.daoimpl.ProjectDAOImpl
-import com.mapprjct.dto.APISession
+import com.mapprjct.model.APISession
 import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.User
 import com.mapprjct.request.CreateProjectRequest

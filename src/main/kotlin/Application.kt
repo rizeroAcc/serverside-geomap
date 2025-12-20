@@ -1,10 +1,8 @@
 package com.mapprjct
 
 import com.mapprjct.app.configureDBTables
-import com.mapprjct.app.configureHTTP
-import com.mapprjct.app.configureMonitoring
 import com.mapprjct.app.configureSecurity
-import com.mapprjct.app.configureSerialization
+import com.mapprjct.app.configurePlugins
 import com.mapprjct.di.configureKoin
 import com.mapprjct.controller.configureAuthenticationController
 import com.mapprjct.controller.configureProfileController
@@ -14,15 +12,13 @@ import io.ktor.server.netty.EngineMain
 
 fun main(args: Array<String>) {
     EngineMain.main(args)
+
 }
 
 fun Application.module() {
     configureKoin()
     configureSecurity()
-    configureSerialization()
-    configureMonitoring()
-    configureHTTP()
-    configureStaticContent()
+    configurePlugins()
     configureAuthenticationController()
     configureProjectsController()
     configureProfileController()

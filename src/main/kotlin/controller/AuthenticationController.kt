@@ -1,8 +1,9 @@
 package com.mapprjct.controller
 
+import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.request.SignInRequest
 import com.mapprjct.request.toUserCredentialsDTO
-import com.mapprjct.dto.APISession
+import com.mapprjct.model.APISession
 import com.mapprjct.dto.User
 import com.mapprjct.response.SignInResponse
 import com.mapprjct.request.RegistrationRequest
@@ -22,7 +23,7 @@ import kotlin.getValue
 
 fun Application.configureAuthenticationController() {
     val userRepository: UserRepository by inject()
-    val sessionStorage by inject<SessionStorage>()
+    val sessionStorage : SessionStorage by inject()
     routing{
         post("/signin") {
             val request = call.receive<SignInRequest>()
@@ -31,6 +32,7 @@ fun Application.configureAuthenticationController() {
             }
             //User never be null if credentials correct
             val user = userRepository.getUser(request.phone)!!
+            (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone)
             val session = APISession(
                 phone = user.phone ,
                 expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
@@ -47,6 +49,11 @@ fun Application.configureAuthenticationController() {
         post("/logout") {
             val sessionId = call.request.headers["Authorization"]
             if (sessionId != null) {
+                try {
+                    sessionStorage.read(sessionId)
+                }catch (e : Exception){
+                    call.respond(HttpStatusCode.OK,"Invalid session")
+                }
                 sessionStorage.invalidate(sessionId)
                 call.respond(HttpStatusCode.OK,"Logged out")
             }

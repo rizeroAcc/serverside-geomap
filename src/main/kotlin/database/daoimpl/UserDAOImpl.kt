@@ -2,6 +2,7 @@ package com.mapprjct.database.daoimpl
 
 import com.mapprjct.database.dao.UserDAO
 import com.mapprjct.database.tables.UserTable
+import com.mapprjct.dto.Avatar
 import com.mapprjct.dto.UserCredentials
 import com.mapprjct.dto.User
 import com.mapprjct.truncatePhone
@@ -35,7 +36,7 @@ class UserDAOImpl(val database: Database) : UserDAO {
             User(
                phone = "8" + it[UserTable.phone],
                 username = it[UserTable.username],
-                avatar = it[UserTable.avatar],
+                avatarPath = it[UserTable.avatar],
            )
         }
     }
@@ -52,21 +53,31 @@ class UserDAOImpl(val database: Database) : UserDAO {
         }
     }
 
-    override suspend fun updateUser(user: User): User? {
+    override suspend fun updateUserAvatar(user : User,avatar: Avatar): User? {
         return try {
             transaction(database) {
-                UserTable.update {
-                    if (user.username.isNotEmpty()) {
-                        it[username] = user.username
-                    }
-                    it[avatar] = user.avatar
-                }
+                UserTable.update(where = {
+                    UserTable.phone eq user.phone
+                }, body = {
+                    it[UserTable.avatar] = avatar.path
+                })
             }
-            user
+            user.copy(avatarPath = avatar.path)
         }catch (e : Exception){
             e.printStackTrace()
             null
         }
 
     }
+
+    override suspend fun updateUserCredentials(userPhone : String, newCredentials : UserCredentials): UserCredentials? {
+        transaction(database) {
+            UserTable.update {
+                it[UserTable.passwordHash]=newCredentials.password
+            }
+        }
+        return newCredentials
+    }
+
+
 }

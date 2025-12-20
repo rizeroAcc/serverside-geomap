@@ -1,6 +1,6 @@
 package com.mapprjct.app
 
-import com.mapprjct.dto.APISession
+import com.mapprjct.model.APISession
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.auth.Authentication
@@ -10,6 +10,7 @@ import io.ktor.server.sessions.SessionStorage
 import io.ktor.server.sessions.Sessions
 import io.ktor.server.sessions.header
 import org.koin.ktor.ext.inject
+import java.util.UUID
 
 
 fun Application.configureSecurity() {

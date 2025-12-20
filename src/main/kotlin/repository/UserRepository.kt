@@ -3,6 +3,7 @@ package com.mapprjct.repository
 import com.mapprjct.ElementAlreadyExistsException
 import com.mapprjct.dto.User
 import com.mapprjct.database.dao.UserDAO
+import com.mapprjct.dto.Avatar
 import com.mapprjct.dto.UserCredentials
 
 class UserRepository(val userDAO: UserDAO) {
@@ -39,12 +40,25 @@ class UserRepository(val userDAO: UserDAO) {
         val existingUser = userDAO.getUser(userPhone)
         return existingUser
     }
-    suspend fun updateUser(user : User) : Result<User>{
-        val newUserData = userDAO.updateUser(user)
+    suspend fun updateUser(user : User, avatar: Avatar) : Result<User>{
+        val newUserData = userDAO.updateUserAvatar(user, avatar)
         return if(newUserData != null){
             Result.success(newUserData)
         }else{
             Result.failure(Exception("User does not exists"))
         }
+    }
+    suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : String) : Result<UserCredentials>{
+        val oldUserCredentials = userDAO.getUserCredentials(oldCredentials.phone) ?: return Result.failure(
+            IllegalStateException("User does not exists")
+        )
+        if (oldUserCredentials.password != oldCredentials.password) {
+            return Result.failure(ElementAlreadyExistsException("Incorrect password"))
+        }
+        userDAO.updateUserCredentials(
+            userPhone = oldCredentials.phone,
+            newCredentials = oldCredentials.copy(password = newUserPassword)
+        )
+        return Result.success(oldCredentials.copy(password = newUserPassword))
     }
 }

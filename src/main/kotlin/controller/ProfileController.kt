@@ -1,31 +1,47 @@
 package com.mapprjct.controller
 
-import com.mapprjct.dto.APISession
+import com.mapprjct.database.storage.PostgresSessionStorage
+import com.mapprjct.dto.Avatar
+import com.mapprjct.model.APISession
 import com.mapprjct.dto.User
+import com.mapprjct.dto.UserCredentials
 import com.mapprjct.repository.UserRepository
+import com.mapprjct.request.ChangePasswordRequest
 import com.mapprjct.response.AvatarUpdateResponse
+import com.mapprjct.response.ChangePasswordResponse
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
+import io.ktor.http.headers
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
+import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondFile
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.sessions.SessionStorage
+import io.ktor.server.sessions.clear
 import io.ktor.server.sessions.get
+import io.ktor.server.sessions.sessionId
 import io.ktor.server.sessions.sessions
+import io.ktor.server.sessions.set
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.copyAndClose
+import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.inject
 import java.io.File
+import java.util.UUID
 
 fun Application.configureProfileController() {
     val userRepository : UserRepository by inject()
+    val sessionStorage : SessionStorage by inject()
     routing {
         authenticate("auth-session") {
             route("/user"){
@@ -53,7 +69,7 @@ fun Application.configureProfileController() {
                                     val fileName = "${session.phone}_avatar.$fileExtension"
                                     val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
 
-                                    val oldAvatarPath = userRepository.getUser(session.phone)?.avatar
+                                    val oldAvatarPath = userRepository.getUser(session.phone)?.avatarPath
                                     removeOldFile(uploadDir,oldAvatarPath)
 
                                     // Create new file
@@ -63,11 +79,10 @@ fun Application.configureProfileController() {
 
                                     // Обновляем в базе данных
                                     avatarFileName = fileName
-                                    userRepository.updateUser(user = User(
-                                        phone = session.phone,
-                                        username = "",
-                                        avatar = avatarFileName
-                                    ))
+                                    userRepository.updateUser(
+                                        user = userRepository.getUser(session.phone)!!,
+                                        avatar = Avatar(avatarFileName)
+                                    )
                                 }
                                 else -> {}
                             }
@@ -91,6 +106,61 @@ fun Application.configureProfileController() {
                     } catch (e: Exception) {
                         call.respond(HttpStatusCode.InternalServerError, "Upload failed: ${e.message}")
                     }
+                }
+                get("/avatar/{filename}") {
+                    val filename = call.parameters["filename"] ?: return@get call.respond(
+                        status = HttpStatusCode.BadRequest,
+                        message = "Missing filename"
+                    )
+
+                    // Безопасность: проверка имени файла
+                    if (filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+                        call.respond(HttpStatusCode.BadRequest)
+                        return@get
+                    }
+
+                    val file = File("api/uploads/avatars", filename)
+
+                    if (!file.exists()) {
+                        call.respond(HttpStatusCode.NotFound)
+                        return@get
+                    }
+
+                    // Устанавливаем заголовки кэширования
+                    call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
+
+                    // Отдаем файл
+                    call.respondFile(file)
+                }
+                post("/changePassword"){
+                    val session = call.principal<APISession>()!!
+                    //if session valid user never be null
+                    val request = call.receive<ChangePasswordRequest>()
+                    val oldCredentials = UserCredentials(
+                        phone = session.phone,
+                        password = request.oldPassword
+                    )
+                    userRepository.updateUserPassword(
+                        oldCredentials = oldCredentials,
+                        newUserPassword = request.newPassword
+                    ).fold(onSuccess = {
+                        val sessionId = call.request.headers["Authorization"]
+                        call.sessions.clear<APISession>()
+                        sessionStorage.invalidate(sessionId!!)
+                        val newSession = APISession(
+                            phone = session.phone ,
+                            expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
+                        )
+                        //Костыль, но иначе ktor переиспользует SessionID
+                        val newSessionID = (sessionStorage as PostgresSessionStorage).writeSession(newSession)
+                        call.response.headers.append("Authorization", newSessionID)
+                        call.respond(
+                            status = HttpStatusCode.Accepted,
+                            message = ChangePasswordResponse(newSession.expireAt)
+                        )
+                    }, onFailure = { error->
+                        call.respond(HttpStatusCode.BadRequest, error.message!!)
+                    })
                 }
             }
         }
