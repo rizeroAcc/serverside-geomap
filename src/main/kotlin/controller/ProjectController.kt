@@ -1,10 +1,11 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.daoimpl.ProjectDAOImpl
-import com.mapprjct.dto.Project
 import com.mapprjct.dto.APISession
+import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.User
 import com.mapprjct.request.CreateProjectRequest
+import com.mapprjct.response.GetAllUserProjectsResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
@@ -15,8 +16,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.ktor.server.sessions.get
-import io.ktor.server.sessions.sessions
 import org.koin.ktor.ext.inject
 
 fun Application.configureProjectsController() {
@@ -42,11 +41,16 @@ fun Application.configureProjectsController() {
                 get("/") {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
-                    val projects = projectDAOImpl.getAllUserProjects(User(
-                        phone = userPhone,
-                        username = ""
-                    ))
-                    call.respond(HttpStatusCode.OK, message = projects)
+                    val projectsAndRoles = projectDAOImpl.getAllUserProjects(userPhone = userPhone)
+                    val response = GetAllUserProjectsResponse(
+                        projectsAndRoles.map {
+                            ProjectWithRole(
+                                project = it.first,
+                                role = it.second.toInt()
+                            )
+                        }
+                    )
+                    call.respond(HttpStatusCode.OK, message = response)
                 }
             }
         }

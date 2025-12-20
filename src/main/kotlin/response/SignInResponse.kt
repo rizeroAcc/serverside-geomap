@@ -1,11 +1,11 @@
 package com.mapprjct.response
 
+import com.mapprjct.dto.User
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class SignInResponse(
-    val phone: String,
-    val username: String,
-    //In future can be added new fields
+    val user : User,
+    val tokenExpiration : Long,
 ) {
 }

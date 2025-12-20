@@ -3,6 +3,7 @@ package com.mapprjct.controller
 import com.mapprjct.request.SignInRequest
 import com.mapprjct.request.toUserCredentialsDTO
 import com.mapprjct.dto.APISession
+import com.mapprjct.dto.User
 import com.mapprjct.response.SignInResponse
 import com.mapprjct.request.RegistrationRequest
 import com.mapprjct.request.toUserCredentialsDto
@@ -36,12 +37,12 @@ fun Application.configureAuthenticationController() {
             )
             call.sessions.set("Authorization" , session)
             call.respond(
-                HttpStatusCode.OK , SignInResponse(
-                    username = user.username ,
-                    phone = user.phone ,
+                status = HttpStatusCode.OK,
+                message = SignInResponse(
+                    user = user!!,
+                    tokenExpiration = session.expireAt
                 )
             )
-
         }
         post("/logout") {
             val sessionId = call.request.headers["Authorization"]

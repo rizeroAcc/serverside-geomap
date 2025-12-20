@@ -33,7 +33,7 @@ class UserDAOImpl(val database: Database) : UserDAO {
             UserTable.selectAll().where {UserTable.phone eq truncatedPhone}.singleOrNull()
         }?.let {
             User(
-               phone = it[UserTable.phone],
+               phone = "8" + it[UserTable.phone],
                 username = it[UserTable.username],
                 avatar = it[UserTable.avatar],
            )

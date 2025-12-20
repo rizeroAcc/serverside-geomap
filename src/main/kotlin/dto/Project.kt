@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 data class Project(
     val projectID : String,
     val name : String,
+    val membersCount : Int,
 )
