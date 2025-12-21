@@ -78,6 +78,24 @@ class UserDAOImpl(val database: Database) : UserDAO {
         }
         return newCredentials
     }
+    /**
+     * Update all fields without phone
+     * */
+    override suspend fun updateUser(user: User): User? {
+        transaction(database) {
+            UserTable.update(
+                where = {
+                    UserTable.phone eq user.phone
+                },
+                body = {
+                    //in future can be more fields
+                    it[UserTable.username] = user.username
+                    it[UserTable.avatar] = user.avatarPath
+                }
+            )
+        }
+        return user
+    }
 
 
 }

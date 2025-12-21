@@ -5,6 +5,7 @@ import com.mapprjct.dto.User
 import com.mapprjct.database.dao.UserDAO
 import com.mapprjct.dto.Avatar
 import com.mapprjct.dto.UserCredentials
+import org.koin.core.instance.InstanceFactory
 
 class UserRepository(val userDAO: UserDAO) {
 
@@ -40,10 +41,18 @@ class UserRepository(val userDAO: UserDAO) {
         val existingUser = userDAO.getUser(userPhone)
         return existingUser
     }
-    suspend fun updateUser(user : User, avatar: Avatar) : Result<User>{
+    suspend fun updateUserAvatar(user : User, avatar: Avatar) : Result<User>{
         val newUserData = userDAO.updateUserAvatar(user, avatar)
         return if(newUserData != null){
             Result.success(newUserData)
+        }else{
+            Result.failure(Exception("User does not exists"))
+        }
+    }
+    suspend fun updateUser(user : User) : Result<User>{
+        val updatedUser = userDAO.updateUser(user)
+        return if(updatedUser != null){
+            Result.success(updatedUser)
         }else{
             Result.failure(Exception("User does not exists"))
         }

@@ -5,7 +5,7 @@ enum class Role {
     Admin,
     Worker;
 
-    fun toInt() : Int {
+    fun toShort() : Short {
         return when (this) {
             Role.Owner -> 1
             Role.Admin -> 2
@@ -20,7 +20,7 @@ fun Short.asRole(): Role {
         2.toShort() -> Role.Admin
         3.toShort()-> Role.Worker
         else -> {
-            throw IllegalStateException("Unknown role")
+            throw IllegalArgumentException("Unknown role")
         }
     }
 }

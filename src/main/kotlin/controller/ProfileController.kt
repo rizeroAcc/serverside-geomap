@@ -3,17 +3,16 @@ package com.mapprjct.controller
 import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.dto.Avatar
 import com.mapprjct.model.APISession
-import com.mapprjct.dto.User
 import com.mapprjct.dto.UserCredentials
 import com.mapprjct.repository.UserRepository
 import com.mapprjct.request.ChangePasswordRequest
+import com.mapprjct.request.ChangeUserInfoRequest
 import com.mapprjct.response.AvatarUpdateResponse
 import com.mapprjct.response.ChangePasswordResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
-import io.ktor.http.headers
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
@@ -22,22 +21,18 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.get
+import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.sessions.SessionStorage
 import io.ktor.server.sessions.clear
-import io.ktor.server.sessions.get
-import io.ktor.server.sessions.sessionId
 import io.ktor.server.sessions.sessions
-import io.ktor.server.sessions.set
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.copyAndClose
 import kotlinx.datetime.Clock
-import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.inject
 import java.io.File
-import java.util.UUID
 
 fun Application.configureProfileController() {
     val userRepository : UserRepository by inject()
@@ -79,7 +74,7 @@ fun Application.configureProfileController() {
 
                                     // Обновляем в базе данных
                                     avatarFileName = fileName
-                                    userRepository.updateUser(
+                                    userRepository.updateUserAvatar(
                                         user = userRepository.getUser(session.phone)!!,
                                         avatar = Avatar(avatarFileName)
                                     )
@@ -161,6 +156,22 @@ fun Application.configureProfileController() {
                     }, onFailure = { error->
                         call.respond(HttpStatusCode.BadRequest, error.message!!)
                     })
+                }
+                patch("/"){
+                    val session = call.principal<APISession>()!!
+                    val request = call.receive<ChangeUserInfoRequest>()
+                    var newUserInfo = userRepository.getUser(session.phone)!!
+                    if (request.username != null){
+                        newUserInfo = newUserInfo.copy(username = request.username)
+                    }
+                    userRepository.updateUser(newUserInfo).fold(
+                        onSuccess = { result->
+                            call.respond(HttpStatusCode.Accepted,result)
+                        },
+                        onFailure = {
+                            call.respond(HttpStatusCode.InternalServerError,it.message!!)
+                        }
+                    )
                 }
             }
         }

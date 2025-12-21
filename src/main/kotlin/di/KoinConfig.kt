@@ -1,11 +1,15 @@
 package com.mapprjct.di
 
+import com.mapprjct.database.dao.InvitationDAO
+import com.mapprjct.database.dao.ProjectDAO
 import com.mapprjct.database.dao.SessionDAO
 import com.mapprjct.database.dao.UserDAO
+import com.mapprjct.database.daoimpl.InvitationDAOImpl
 import com.mapprjct.database.daoimpl.ProjectDAOImpl
 import com.mapprjct.database.daoimpl.SessionDAOImpl
 import com.mapprjct.database.daoimpl.UserDAOImpl
 import com.mapprjct.database.storage.PostgresSessionStorage
+import com.mapprjct.repository.ProjectRepository
 import com.mapprjct.repository.UserRepository
 import io.ktor.server.application.*
 import io.ktor.server.sessions.SessionStorage
@@ -21,11 +25,15 @@ fun Application.configureKoin() {
         slf4jLogger()
         modules(databaseModule,
             module {
+                single<SessionStorage> { PostgresSessionStorage(get()) }
+
                 single<UserRepository> { UserRepository(get()) }
+                single<ProjectRepository> { ProjectRepository(get(),get()) }
+
                 single<UserDAO> { UserDAOImpl(get()) }
                 single<SessionDAO> { SessionDAOImpl(get()) }
-                single<SessionStorage> { PostgresSessionStorage(get()) }
-                single<ProjectDAOImpl> { ProjectDAOImpl(get()) }
+                single<ProjectDAO> { ProjectDAOImpl(get()) }
+                single<InvitationDAO> { InvitationDAOImpl(get()) }
             }
         )
     }

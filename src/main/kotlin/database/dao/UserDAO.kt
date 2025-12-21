@@ -10,4 +10,5 @@ interface UserDAO {
     suspend fun getUserCredentials(phone : String) : UserCredentials?
     suspend fun updateUserAvatar(user: User, avatar: Avatar) : User?
     suspend fun updateUserCredentials(userPhone : String, newCredentials : UserCredentials) : UserCredentials?
+    suspend fun updateUser(user : User) : User?
 }

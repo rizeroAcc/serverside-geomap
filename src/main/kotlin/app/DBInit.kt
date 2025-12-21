@@ -1,5 +1,6 @@
 package com.mapprjct.app
 
+import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.SessionTable
@@ -15,6 +16,7 @@ fun Application.configureDBTables(){
             SessionTable,
             ProjectTable,
             ProjectUsersTable,
+            InviteCodeTable,
         )
     }
 }
