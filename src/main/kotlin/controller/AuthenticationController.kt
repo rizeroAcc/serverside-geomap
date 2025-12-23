@@ -52,13 +52,12 @@ fun Application.configureAuthenticationController() {
                 try {
                     sessionStorage.read(sessionId)
                 }catch (e : Exception){
-                    call.respond(HttpStatusCode.OK,"Invalid session")
+                    call.respond(HttpStatusCode.NotFound,"Invalid session")
                 }
                 sessionStorage.invalidate(sessionId)
-                call.respond(HttpStatusCode.OK,"Logged out")
+                call.respond(HttpStatusCode.Accepted,"Logged out")
             }
             call.respond(HttpStatusCode.OK,"Already logged out")
-
         }
         post("/register"){
             val registrationRequest = call.receive<RegistrationRequest>()

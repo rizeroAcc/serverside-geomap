@@ -6,4 +6,5 @@ import java.util.UUID
 interface InvitationDAO {
     suspend fun insertInvitationCode(invitation: Invitation) : Invitation?
     suspend fun getInvitaion(code: UUID) : Invitation?
+    suspend fun deleteInvitationCode(invitation: Invitation)
 }

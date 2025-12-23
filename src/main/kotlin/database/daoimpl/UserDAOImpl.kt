@@ -8,33 +8,29 @@ import com.mapprjct.dto.User
 import com.mapprjct.truncatePhone
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.insertReturning
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
 class UserDAOImpl(val database: Database) : UserDAO {
-    override suspend fun insert(userCredentials : UserCredentials, username : String) : Int{
-        try {
-            transaction(database) {
-                UserTable.insert {
-                    it[phone] = userCredentials.phone.truncatePhone()
-                    it[UserTable.username] = username
-                    it[passwordHash] = userCredentials.password
-                }
+    override suspend fun insert(user: User, password : String){
+        transaction(database) {
+            UserTable.insert {
+                it[phone] = user.phone.replaceRussiaCountryCode()
+                it[UserTable.username] = user.username
+                it[passwordHash] = password
+                it[avatar] = user.avatarPath
             }
-            return 1
-        }catch (e : Exception) {
-            return 0
         }
     }
 
     override suspend fun getUser(phone : String) : User?{
-        val truncatedPhone = phone.truncatePhone()
         return transaction(database) {
-            UserTable.selectAll().where {UserTable.phone eq truncatedPhone}.singleOrNull()
+            UserTable.selectAll().where {UserTable.phone eq phone.replaceRussiaCountryCode()}.singleOrNull()
         }?.let {
             User(
-               phone = "8" + it[UserTable.phone],
+               phone = it[UserTable.phone],
                 username = it[UserTable.username],
                 avatarPath = it[UserTable.avatar],
            )
@@ -42,9 +38,8 @@ class UserDAOImpl(val database: Database) : UserDAO {
     }
 
     override suspend fun getUserCredentials(phone: String): UserCredentials? {
-        val truncatedPhone = phone.truncatePhone()
         return transaction(database) {
-            UserTable.selectAll().where { UserTable.phone eq truncatedPhone }.singleOrNull()
+            UserTable.selectAll().where { UserTable.phone eq phone.replaceRussiaCountryCode() }.singleOrNull()
         }?.let {
             UserCredentials(
                 phone = it[UserTable.phone] ,
@@ -53,36 +48,21 @@ class UserDAOImpl(val database: Database) : UserDAO {
         }
     }
 
-    override suspend fun updateUserAvatar(user : User,avatar: Avatar): User? {
-        return try {
-            transaction(database) {
-                UserTable.update(where = {
-                    UserTable.phone eq user.phone
-                }, body = {
-                    it[UserTable.avatar] = avatar.path
-                })
-            }
-            user.copy(avatarPath = avatar.path)
-        }catch (e : Exception){
-            e.printStackTrace()
-            null
-        }
 
-    }
-
-    override suspend fun updateUserCredentials(userPhone : String, newCredentials : UserCredentials): UserCredentials? {
-        transaction(database) {
+    override suspend fun updateUserCredentials(userPhone : String, newCredentials : UserCredentials): Int {
+        return transaction(database) {
             UserTable.update {
-                it[UserTable.passwordHash]=newCredentials.password
+                it[phone] = newCredentials.phone
+                it[UserTable.passwordHash] = newCredentials.password
             }
         }
-        return newCredentials
     }
+    
     /**
      * Update all fields without phone
      * */
-    override suspend fun updateUser(user: User): User? {
-        transaction(database) {
+    override suspend fun updateUser(user: User): Int {
+        return transaction(database) {
             UserTable.update(
                 where = {
                     UserTable.phone eq user.phone
@@ -94,8 +74,15 @@ class UserDAOImpl(val database: Database) : UserDAO {
                 }
             )
         }
-        return user
     }
 
+
+    /**
+     * Change phone signature from +7********** to 8**********
+     * If phone already start with 8 don't do anything
+     * */
+    private fun String.replaceRussiaCountryCode() : String{
+        return if (this.startsWith("+7")) this.replace("+7", "8") else this
+    }
 
 }

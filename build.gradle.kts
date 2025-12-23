@@ -11,6 +11,10 @@ application {
     mainClass = "io.ktor.server.netty.EngineMain"
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 dependencies {
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger.slf4j)
@@ -34,6 +38,12 @@ dependencies {
     implementation("io.ktor:ktor-serialization-gson:3.3.2")
     implementation("io.ktor:ktor-server-sessions:3.3.2")
     implementation("io.ktor:ktor-server-partial-content:3.3.2")
+
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
+
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.3")
 }

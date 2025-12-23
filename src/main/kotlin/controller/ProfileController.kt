@@ -74,9 +74,9 @@ fun Application.configureProfileController() {
 
                                     // Обновляем в базе данных
                                     avatarFileName = fileName
-                                    userRepository.updateUserAvatar(
-                                        user = userRepository.getUser(session.phone)!!,
-                                        avatar = Avatar(avatarFileName)
+                                    userRepository.updateUser(
+                                        user = userRepository.getUser(session.phone)!!
+                                            .copy(avatarPath = avatarFileName),
                                     )
                                 }
                                 else -> {}

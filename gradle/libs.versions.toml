@@ -7,6 +7,10 @@ ktor = "3.3.2"
 logback = "1.4.14"
 postgres = "42.7.8"
 swagger = "2.2.15"
+testcontainers = "1.21.3"
+
+kotlinJUnit = "2.3.0"
+kotlinCoroutinesTest = "1.10.2"
 [libraries]
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
@@ -30,10 +34,16 @@ ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor"
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
-kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlinJUnit" }
+kotlin-test-coroutines = { module = "org.jetbrains:kotlinx-coroutines-test", version.ref = "kotlinCoroutinesTest"}
 
 ktor-server-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor"}
 swagger-core = {module = "io.swagger.core.v3:swagger-core", version.ref = "swagger"}
+
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers"}
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers"}
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.11.3" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

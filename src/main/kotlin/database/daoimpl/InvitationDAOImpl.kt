@@ -5,6 +5,8 @@ import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.dto.asRole
 import com.mapprjct.model.Invitation
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -24,7 +26,7 @@ class InvitationDAOImpl(val database: Database) : InvitationDAO{
                     it[InviteCodeTable.inviterPhone] = invitation.inviterPhone
                     it[InviteCodeTable.projectID] = invitation.projectID
                     it[InviteCodeTable.expireAt] = invitation.expireAt
-                    it[InviteCodeTable.invitationCode] = invitation.inviteCode
+                    it[InviteCodeTable.inviteCode] = invitation.inviteCode
                     it[InviteCodeTable.role] = invitation.role.toShort()
                 }
                 return@transaction invitation
@@ -38,16 +40,22 @@ class InvitationDAOImpl(val database: Database) : InvitationDAO{
     override suspend fun getInvitaion(code: UUID): Invitation? {
         return transaction(database) {
             InviteCodeTable.selectAll().where{
-                InviteCodeTable.invitationCode eq code
+                InviteCodeTable.inviteCode eq code
             }.singleOrNull()?.let {
                 Invitation(
                     inviterPhone = it[InviteCodeTable.inviterPhone],
-                    inviteCode = it[InviteCodeTable.invitationCode],
+                    inviteCode = it[InviteCodeTable.inviteCode],
                     projectID = it[InviteCodeTable.projectID],
                     expireAt = it[InviteCodeTable.expireAt],
                     role = it[InviteCodeTable.role].asRole()
                 )
             }
+        }
+    }
+
+    override suspend fun deleteInvitationCode(invitation: Invitation) {
+        InviteCodeTable.deleteWhere{
+            InviteCodeTable.inviteCode eq invitation.inviteCode
         }
     }
 }

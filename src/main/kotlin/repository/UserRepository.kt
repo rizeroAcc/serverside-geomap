@@ -16,7 +16,8 @@ class UserRepository(val userDAO: UserDAO) {
         //todo hash password
         val existingUser = userDAO.getUser(userCredentials.phone)
         if (existingUser == null){
-            userDAO.insert(userCredentials = userCredentials, username = username)
+            val user = User(phone = userCredentials.phone, username = username)
+            userDAO.insert(user = user, password = userCredentials.password)
             return Result.success(userCredentials)
         }else{
             return Result.failure(ElementAlreadyExistsException("User already exists"))
@@ -41,20 +42,10 @@ class UserRepository(val userDAO: UserDAO) {
         val existingUser = userDAO.getUser(userPhone)
         return existingUser
     }
-    suspend fun updateUserAvatar(user : User, avatar: Avatar) : Result<User>{
-        val newUserData = userDAO.updateUserAvatar(user, avatar)
-        return if(newUserData != null){
-            Result.success(newUserData)
-        }else{
-            Result.failure(Exception("User does not exists"))
-        }
-    }
     suspend fun updateUser(user : User) : Result<User>{
-        val updatedUser = userDAO.updateUser(user)
-        return if(updatedUser != null){
-            Result.success(updatedUser)
-        }else{
-            Result.failure(Exception("User does not exists"))
+        return runCatching {
+            userDAO.updateUser(user)
+            user
         }
     }
     suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : String) : Result<UserCredentials>{

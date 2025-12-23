@@ -22,5 +22,5 @@ fun Application.module() {
     configureAuthenticationController()
     configureProjectsController()
     configureProfileController()
-    configureDBTables()
+    configureDBTables(clearTables = false)
 }
