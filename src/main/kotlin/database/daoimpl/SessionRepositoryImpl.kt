@@ -1,6 +1,6 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.SessionDAO
+import com.mapprjct.database.dao.SessionRepository
 import com.mapprjct.database.tables.SessionTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -9,7 +9,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
 
-class SessionDAOImpl(val database: Database) : SessionDAO {
+class SessionRepositoryImpl(val database: Database) : SessionRepository {
     override suspend fun upsert(id: String, value: String, phone: String) {
         transaction(database) {
             SessionTable.upsert(

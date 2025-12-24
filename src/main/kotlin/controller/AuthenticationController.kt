@@ -4,11 +4,10 @@ import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.request.SignInRequest
 import com.mapprjct.request.toUserCredentialsDTO
 import com.mapprjct.model.APISession
-import com.mapprjct.dto.User
 import com.mapprjct.response.SignInResponse
 import com.mapprjct.request.RegistrationRequest
 import com.mapprjct.request.toUserCredentialsDto
-import com.mapprjct.repository.UserRepository
+import com.mapprjct.repository.UserService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
@@ -22,16 +21,16 @@ import org.koin.ktor.ext.inject
 import kotlin.getValue
 
 fun Application.configureAuthenticationController() {
-    val userRepository: UserRepository by inject()
+    val userService: UserService by inject()
     val sessionStorage : SessionStorage by inject()
     routing{
         post("/signin") {
             val request = call.receive<SignInRequest>()
-            if (!userRepository.validateCredentials(request.toUserCredentialsDTO())){
+            if (!userService.validateCredentials(request.toUserCredentialsDTO())){
                 call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
             //User never be null if credentials correct
-            val user = userRepository.getUser(request.phone)!!
+            val user = userService.getUser(request.phone)!!
             (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone)
             val session = APISession(
                 phone = user.phone ,
@@ -61,7 +60,7 @@ fun Application.configureAuthenticationController() {
         }
         post("/register"){
             val registrationRequest = call.receive<RegistrationRequest>()
-            val registrationResult = userRepository.createUser(
+            val registrationResult = userService.createUser(
                 userCredentials = registrationRequest.toUserCredentialsDto(),
                 username = registrationRequest.username
             )

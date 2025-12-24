@@ -1,19 +1,17 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.UserDAO
+import com.mapprjct.database.dao.UserRepository
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.dto.Avatar
 import com.mapprjct.dto.UserCredentials
 import com.mapprjct.dto.User
-import com.mapprjct.truncatePhone
+import com.mapprjct.replaceRussiaCountryCode
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.insertReturning
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 
-class UserDAOImpl(val database: Database) : UserDAO {
+class UserRepositoryImpl(val database: Database) : UserRepository {
     override suspend fun insert(user: User, password : String){
         transaction(database) {
             UserTable.insert {
@@ -49,15 +47,16 @@ class UserDAOImpl(val database: Database) : UserDAO {
     }
 
 
-    override suspend fun updateUserCredentials(userPhone : String, newCredentials : UserCredentials): Int {
+    override suspend fun updateUserPassword(userPhone : String, password: String): Int {
         return transaction(database) {
-            UserTable.update {
-                it[phone] = newCredentials.phone
-                it[UserTable.passwordHash] = newCredentials.password
+            UserTable.update(
+                where = { UserTable.phone eq userPhone.replaceRussiaCountryCode() },
+            ) {
+                it[UserTable.passwordHash] = password
             }
         }
     }
-    
+
     /**
      * Update all fields without phone
      * */
@@ -77,12 +76,6 @@ class UserDAOImpl(val database: Database) : UserDAO {
     }
 
 
-    /**
-     * Change phone signature from +7********** to 8**********
-     * If phone already start with 8 don't do anything
-     * */
-    private fun String.replaceRussiaCountryCode() : String{
-        return if (this.startsWith("+7")) this.replace("+7", "8") else this
-    }
+
 
 }

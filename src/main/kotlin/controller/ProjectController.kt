@@ -1,11 +1,9 @@
 package com.mapprjct.controller
 
 import com.mapprjct.NotFoundException
-import com.mapprjct.database.daoimpl.ProjectDAOImpl
+import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
 import com.mapprjct.model.APISession
-import com.mapprjct.dto.ProjectWithRole
-import com.mapprjct.dto.asRole
-import com.mapprjct.repository.ProjectRepository
+import com.mapprjct.repository.ProjectService
 import com.mapprjct.request.CreateProjectRequest
 import com.mapprjct.request.InviteUserRequest
 import com.mapprjct.request.JoinToProjectRequest
@@ -24,8 +22,8 @@ import io.ktor.server.routing.routing
 import org.koin.ktor.ext.inject
 
 fun Application.configureProjectsController() {
-    val projectDAOImpl : ProjectDAOImpl by inject()
-    val projectRepository: ProjectRepository by inject()
+    val projectDAOImpl : ProjectRepositoryImpl by inject()
+    val projectService: ProjectService by inject()
     routing() {
         authenticate("auth-session") {
             route("/projects") {
@@ -33,7 +31,7 @@ fun Application.configureProjectsController() {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
                     val request = call.receive<CreateProjectRequest>()
-                    val newProject = projectRepository.createProject(
+                    val newProject = projectService.createProject(
                         creatorPhone = userPhone,
                         projectName = request.projectName
                     ).fold(
@@ -48,7 +46,7 @@ fun Application.configureProjectsController() {
                 get("/") {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
-                    projectRepository.getAllUserProjects(userPhone = userPhone).fold(
+                    projectService.getAllUserProjects(userPhone = userPhone).fold(
                         onSuccess = { projectsAndRolse->
                             val response = GetAllUserProjectsResponse(
                                 projectsAndRolse
@@ -65,7 +63,7 @@ fun Application.configureProjectsController() {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
                     val request = call.receive<InviteUserRequest>()
-                    val invitation = projectRepository.createInvitation(
+                    val invitation = projectService.createInvitation(
                         inviterPhone = userPhone,
                         projectID = request.projectID,
                         role = request.role
@@ -91,7 +89,7 @@ fun Application.configureProjectsController() {
                     val request = call.receive<JoinToProjectRequest>()
                     val userPhone = session.phone
 
-                    val project = projectRepository.joinProject(userPhone,request.inviteCode).fold(
+                    val project = projectService.joinProject(userPhone,request.inviteCode).fold(
                         onSuccess = { result-> call.respond(HttpStatusCode.Accepted, message = result) },
                         onFailure = { error->
                             when(error){

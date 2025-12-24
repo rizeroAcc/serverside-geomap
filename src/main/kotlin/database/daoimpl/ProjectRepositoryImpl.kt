@@ -1,28 +1,23 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.ProjectDAO
-import com.mapprjct.database.tables.InviteCodeTable
+import com.mapprjct.database.dao.ProjectRepository
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.dto.Project
 import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.Role
-import com.mapprjct.dto.asRole
-import com.mapprjct.model.Invitation
+import com.mapprjct.replaceRussiaCountryCode
 import com.mapprjct.truncatePhone
-import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.plus
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
-class ProjectDAOImpl(val database: Database) : ProjectDAO {
+class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
+
     override suspend fun getAllUserProjects(userPhone: String): List<ProjectWithRole> {
-        val truncatePhone = userPhone.truncatePhone()
         return transaction(database) {
             (ProjectUsersTable innerJoin ProjectTable)
                 .select(
@@ -32,7 +27,7 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
                     ProjectUsersTable.role
                 )
                 .where {
-                    ProjectUsersTable.userPhone eq truncatePhone
+                    ProjectUsersTable.userPhone eq userPhone.replaceRussiaCountryCode()
                 }
                 .map { result ->
                     ProjectWithRole(
@@ -51,7 +46,7 @@ class ProjectDAOImpl(val database: Database) : ProjectDAO {
         creatorPhone: String,
         projectName: String
     ): Project {
-        val truncatedPhone = creatorPhone.truncatePhone()
+        val truncatedPhone = creatorPhone.replaceRussiaCountryCode()
         val newProjectUUID = UUID.randomUUID()
         transaction(database) {
             ProjectTable.insert {

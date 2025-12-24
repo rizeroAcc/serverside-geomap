@@ -1,6 +1,6 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.InvitationDAO
+import com.mapprjct.database.dao.InvitationRepository
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.dto.asRole
 import com.mapprjct.model.Invitation
@@ -12,7 +12,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.util.UUID
 
-class InvitationDAOImpl(val database: Database) : InvitationDAO{
+class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
     override suspend fun insertInvitationCode(
         invitation : Invitation
     ): Invitation? {

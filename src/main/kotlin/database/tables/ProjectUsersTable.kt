@@ -9,4 +9,5 @@ object ProjectUsersTable : Table("project_users") {
     val role = short("role")
 
     override val primaryKey = PrimaryKey(projectId,userPhone)
+    val index = index(customIndexName = "project_user", isUnique = true, projectId,userPhone)
 }

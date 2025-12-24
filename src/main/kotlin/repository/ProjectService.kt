@@ -1,8 +1,8 @@
 package com.mapprjct.repository
 
 import com.mapprjct.NotFoundException
-import com.mapprjct.database.dao.InvitationDAO
-import com.mapprjct.database.dao.ProjectDAO
+import com.mapprjct.database.dao.InvitationRepository
+import com.mapprjct.database.dao.ProjectRepository
 import com.mapprjct.dto.Project
 import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.Role
@@ -12,20 +12,20 @@ import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class ProjectRepository(
-    val projectDAO: ProjectDAO,
-    val invitationDAO: InvitationDAO
+class ProjectService(
+    val projectRepository: ProjectRepository,
+    val invitationRepository: InvitationRepository
 ) {
     suspend fun getAllUserProjects(userPhone : String): Result<List<ProjectWithRole>>{
         return try {
-            Result.success(projectDAO.getAllUserProjects(userPhone))
+            Result.success(projectRepository.getAllUserProjects(userPhone))
         }catch (e : Exception){
             Result.failure(e)
         }
     }
     suspend fun createProject(creatorPhone : String, projectName : String) : Result<Project>{
         return try {
-            Result.success(projectDAO.insertProject(creatorPhone, projectName))
+            Result.success(projectRepository.insertProject(creatorPhone, projectName))
         }catch (e : Exception){
             Result.failure(e)
         }
@@ -43,7 +43,7 @@ class ProjectRepository(
             return Result.failure(IllegalArgumentException("Invalid projectID"))
         }
 
-        val project = projectDAO.getProjectById(projectUUID)
+        val project = projectRepository.getProjectById(projectUUID)
             ?: return Result.failure(NotFoundException("Project with ID $projectID not found"))
 
         var invitationRole : Role? = null
@@ -63,7 +63,7 @@ class ProjectRepository(
             inviteCode = UUID.randomUUID(),
             role = role.asRole()
         )
-        val invitation = invitationDAO.insertInvitationCode(newInvitation)
+        val invitation = invitationRepository.insertInvitationCode(newInvitation)
         return if (invitation == null){
             Result.failure(IllegalStateException("User have over five invitations in this project"))
         }else{
@@ -72,7 +72,7 @@ class ProjectRepository(
     }
     //todo make check to
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{
-        val invitation = invitationDAO.getInvitaion(
+        val invitation = invitationRepository.getInvitaion(
             code = UUID.fromString(invitationCode)
         )
         if (invitation == null){
@@ -83,14 +83,14 @@ class ProjectRepository(
         if (userPhone == invitation.inviterPhone){
             return Result.failure(IllegalStateException("User already project member"))
         }
-        val project = projectDAO.getProjectById(invitation.projectID)
+        val project = projectRepository.getProjectById(invitation.projectID)
         if (project == null){
             return Result.failure(NotFoundException(
                 "Project with ID ${invitation.projectID} not found, may be it was deleted")
             )
         }
         try {
-            projectDAO.addMemberToProject(userPhone, project = project, role = invitation.role)
+            projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
         }catch (e: Exception){
             return Result.failure(e)
         }

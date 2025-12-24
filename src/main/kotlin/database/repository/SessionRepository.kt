@@ -1,6 +1,6 @@
 package com.mapprjct.database.dao
 
-interface SessionDAO {
+interface SessionRepository {
     suspend fun upsert(id: String, value: String, phone: String)
     suspend fun delete(id: String)
     suspend fun get(id: String): String?

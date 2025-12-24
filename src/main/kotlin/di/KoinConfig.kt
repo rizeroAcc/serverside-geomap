@@ -1,16 +1,16 @@
 package com.mapprjct.di
 
-import com.mapprjct.database.dao.InvitationDAO
-import com.mapprjct.database.dao.ProjectDAO
-import com.mapprjct.database.dao.SessionDAO
-import com.mapprjct.database.dao.UserDAO
-import com.mapprjct.database.daoimpl.InvitationDAOImpl
-import com.mapprjct.database.daoimpl.ProjectDAOImpl
-import com.mapprjct.database.daoimpl.SessionDAOImpl
-import com.mapprjct.database.daoimpl.UserDAOImpl
+import com.mapprjct.database.dao.InvitationRepository
+import com.mapprjct.database.dao.ProjectRepository
+import com.mapprjct.database.dao.SessionRepository
+import com.mapprjct.database.dao.UserRepository
+import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
+import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
+import com.mapprjct.database.daoimpl.SessionRepositoryImpl
+import com.mapprjct.database.daoimpl.UserRepositoryImpl
 import com.mapprjct.database.storage.PostgresSessionStorage
-import com.mapprjct.repository.ProjectRepository
-import com.mapprjct.repository.UserRepository
+import com.mapprjct.repository.ProjectService
+import com.mapprjct.repository.UserService
 import io.ktor.server.application.*
 import io.ktor.server.sessions.SessionStorage
 import org.koin.dsl.module
@@ -27,13 +27,13 @@ fun Application.configureKoin() {
             module {
                 single<SessionStorage> { PostgresSessionStorage(get()) }
 
-                single<UserRepository> { UserRepository(get()) }
-                single<ProjectRepository> { ProjectRepository(get(),get()) }
+                single<UserService> { UserService(get()) }
+                single<ProjectService> { ProjectService(get(),get()) }
 
-                single<UserDAO> { UserDAOImpl(get()) }
-                single<SessionDAO> { SessionDAOImpl(get()) }
-                single<ProjectDAO> { ProjectDAOImpl(get()) }
-                single<InvitationDAO> { InvitationDAOImpl(get()) }
+                single<UserRepository> { UserRepositoryImpl(get()) }
+                single<SessionRepository> { SessionRepositoryImpl(get()) }
+                single<ProjectRepository> { ProjectRepositoryImpl(get()) }
+                single<InvitationRepository> { InvitationRepositoryImpl(get()) }
             }
         )
     }

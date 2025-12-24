@@ -2,30 +2,27 @@ package com.mapprjct.repository
 
 import com.mapprjct.ElementAlreadyExistsException
 import com.mapprjct.dto.User
-import com.mapprjct.database.dao.UserDAO
-import com.mapprjct.dto.Avatar
+import com.mapprjct.database.dao.UserRepository
 import com.mapprjct.dto.UserCredentials
-import org.koin.core.instance.InstanceFactory
 
-class UserRepository(val userDAO: UserDAO) {
+class UserService(val userRepository: UserRepository) {
 
 
 
     suspend fun createUser(userCredentials : UserCredentials, username : String) : Result<UserCredentials>{
         //todo validate phone
         //todo hash password
-        val existingUser = userDAO.getUser(userCredentials.phone)
+        val existingUser = userRepository.getUser(userCredentials.phone)
         if (existingUser == null){
             val user = User(phone = userCredentials.phone, username = username)
-            userDAO.insert(user = user, password = userCredentials.password)
+            userRepository.insert(user = user, password = userCredentials.password)
             return Result.success(userCredentials)
         }else{
             return Result.failure(ElementAlreadyExistsException("User already exists"))
         }
     }
-
     suspend fun getUserCredentials(userCredentials : UserCredentials) : UserCredentials?{
-        val existingUser = userDAO.getUserCredentials(userCredentials.phone)
+        val existingUser = userRepository.getUserCredentials(userCredentials.phone)
         return existingUser?.let {
             if (it.password == userCredentials.password){
                 it
@@ -35,29 +32,29 @@ class UserRepository(val userDAO: UserDAO) {
         }
     }
     suspend fun validateCredentials(userCredentials : UserCredentials): Boolean {
-        val existingUser = userDAO.getUserCredentials(userCredentials.phone)
+        val existingUser = userRepository.getUserCredentials(userCredentials.phone)
         return existingUser != null && existingUser.password == userCredentials.password
     }
     suspend fun getUser(userPhone : String) : User?{
-        val existingUser = userDAO.getUser(userPhone)
+        val existingUser = userRepository.getUser(userPhone)
         return existingUser
     }
     suspend fun updateUser(user : User) : Result<User>{
         return runCatching {
-            userDAO.updateUser(user)
+            userRepository.updateUser(user)
             user
         }
     }
     suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : String) : Result<UserCredentials>{
-        val oldUserCredentials = userDAO.getUserCredentials(oldCredentials.phone) ?: return Result.failure(
+        val oldUserCredentials = userRepository.getUserCredentials(oldCredentials.phone) ?: return Result.failure(
             IllegalStateException("User does not exists")
         )
         if (oldUserCredentials.password != oldCredentials.password) {
-            return Result.failure(ElementAlreadyExistsException("Incorrect password"))
+            return Result.failure(IllegalArgumentException("Incorrect password"))
         }
-        userDAO.updateUserCredentials(
+        userRepository.updateUserPassword(
             userPhone = oldCredentials.phone,
-            newCredentials = oldCredentials.copy(password = newUserPassword)
+            password = newUserPassword
         )
         return Result.success(oldCredentials.copy(password = newUserPassword))
     }

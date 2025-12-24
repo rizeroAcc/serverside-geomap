@@ -1,10 +1,9 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.storage.PostgresSessionStorage
-import com.mapprjct.dto.Avatar
 import com.mapprjct.model.APISession
 import com.mapprjct.dto.UserCredentials
-import com.mapprjct.repository.UserRepository
+import com.mapprjct.repository.UserService
 import com.mapprjct.request.ChangePasswordRequest
 import com.mapprjct.request.ChangeUserInfoRequest
 import com.mapprjct.response.AvatarUpdateResponse
@@ -35,7 +34,7 @@ import org.koin.ktor.ext.inject
 import java.io.File
 
 fun Application.configureProfileController() {
-    val userRepository : UserRepository by inject()
+    val userService : UserService by inject()
     val sessionStorage : SessionStorage by inject()
     routing {
         authenticate("auth-session") {
@@ -43,7 +42,7 @@ fun Application.configureProfileController() {
                 get("/"){
                     val session = call.principal<APISession>()!!
                     //if session valid user never be null
-                    val user = userRepository.getUser(session.phone)!!
+                    val user = userService.getUser(session.phone)!!
                     call.respond(status = HttpStatusCode.OK,user)
                 }
                 post("/avatar"){
@@ -64,7 +63,7 @@ fun Application.configureProfileController() {
                                     val fileName = "${session.phone}_avatar.$fileExtension"
                                     val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
 
-                                    val oldAvatarPath = userRepository.getUser(session.phone)?.avatarPath
+                                    val oldAvatarPath = userService.getUser(session.phone)?.avatarPath
                                     removeOldFile(uploadDir,oldAvatarPath)
 
                                     // Create new file
@@ -74,8 +73,8 @@ fun Application.configureProfileController() {
 
                                     // Обновляем в базе данных
                                     avatarFileName = fileName
-                                    userRepository.updateUser(
-                                        user = userRepository.getUser(session.phone)!!
+                                    userService.updateUser(
+                                        user = userService.getUser(session.phone)!!
                                             .copy(avatarPath = avatarFileName),
                                     )
                                 }
@@ -135,7 +134,7 @@ fun Application.configureProfileController() {
                         phone = session.phone,
                         password = request.oldPassword
                     )
-                    userRepository.updateUserPassword(
+                    userService.updateUserPassword(
                         oldCredentials = oldCredentials,
                         newUserPassword = request.newPassword
                     ).fold(onSuccess = {
@@ -160,11 +159,11 @@ fun Application.configureProfileController() {
                 patch("/"){
                     val session = call.principal<APISession>()!!
                     val request = call.receive<ChangeUserInfoRequest>()
-                    var newUserInfo = userRepository.getUser(session.phone)!!
+                    var newUserInfo = userService.getUser(session.phone)!!
                     if (request.username != null){
                         newUserInfo = newUserInfo.copy(username = request.username)
                     }
-                    userRepository.updateUser(newUserInfo).fold(
+                    userService.updateUser(newUserInfo).fold(
                         onSuccess = { result->
                             call.respond(HttpStatusCode.Accepted,result)
                         },
