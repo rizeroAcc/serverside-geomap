@@ -1,4 +1,4 @@
-package com.mapprjct
+package com.mapprjct.dao
 
 import com.mapprjct.database.dao.SessionDAO
 import com.mapprjct.database.daoimpl.SessionDAOImpl
@@ -7,7 +7,6 @@ import com.mapprjct.model.APISession
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Schema
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -36,7 +35,7 @@ class SessionDAOTest(){
     private lateinit var sessionDAO: SessionDAO
     @BeforeEach
     fun setUp(){
-        database = Database.connect(
+        database = Database.Companion.connect(
             url = postgreSQLContainer.jdbcUrl,
             driver = "org.postgresql.Driver",
             user = "postgres",
@@ -58,15 +57,15 @@ class SessionDAOTest(){
     }
 
     @Test
-    fun `should save session`() = runTest{
-        val sessionID = UUID.randomUUID().toString().replace("-","")
+    fun `should save session`() = runTest {
+        val sessionID = UUID.randomUUID().toString().replace("-", "")
         val userPhone = "89036559989"
-        val sessionExpiration = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24
+        val sessionExpiration = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24
         val session = APISession(
             phone = userPhone,
             sessionExpiration
         )
-        val sessionValue = Json.encodeToString(session)
+        val sessionValue = Json.Default.encodeToString(session)
         sessionDAO.upsert(id = sessionID, value = sessionValue, phone = userPhone)
 
         val savedSessionValue = sessionDAO.get(sessionID)!!
