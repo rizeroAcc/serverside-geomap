@@ -37,7 +37,7 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
         return createdInvitation
     }
 
-    override suspend fun getInvitaion(code: UUID): Invitation? {
+    override suspend fun getInvitation(code: UUID): Invitation? {
         return transaction(database) {
             InviteCodeTable.selectAll().where{
                 InviteCodeTable.inviteCode eq code

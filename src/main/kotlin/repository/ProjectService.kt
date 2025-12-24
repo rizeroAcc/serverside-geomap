@@ -72,7 +72,7 @@ class ProjectService(
     }
     //todo make check to
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{
-        val invitation = invitationRepository.getInvitaion(
+        val invitation = invitationRepository.getInvitation(
             code = UUID.fromString(invitationCode)
         )
         if (invitation == null){
