@@ -1,6 +1,6 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.SessionRepository
+import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.database.tables.SessionTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq

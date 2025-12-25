@@ -1,13 +1,12 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.ProjectRepository
+import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.dto.Project
 import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.Role
 import com.mapprjct.replaceRussiaCountryCode
-import com.mapprjct.truncatePhone
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll

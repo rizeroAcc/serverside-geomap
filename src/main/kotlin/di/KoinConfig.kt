@@ -1,9 +1,10 @@
 package com.mapprjct.di
 
-import com.mapprjct.database.dao.InvitationRepository
-import com.mapprjct.database.dao.ProjectRepository
-import com.mapprjct.database.dao.SessionRepository
-import com.mapprjct.database.dao.UserRepository
+import com.mapprjct.ApplicationStartMode
+import com.mapprjct.database.repository.InvitationRepository
+import com.mapprjct.database.repository.ProjectRepository
+import com.mapprjct.database.repository.SessionRepository
+import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
 import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
@@ -17,11 +18,20 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
-fun Application.configureKoin() {
+fun Application.configureKoin(startMode: ApplicationStartMode) {
     install(Koin) {
-        koin.setProperty("postgres.url", environment.config.property("postgres.url").getString())
-        koin.setProperty("postgres.user", environment.config.property("postgres.user").getString())
-        koin.setProperty("postgres.password", environment.config.property("postgres.password").getString())
+        when(startMode) {
+            is ApplicationStartMode.TEST -> {
+                koin.setProperty("postgres.url", startMode.dbURL)
+                koin.setProperty("postgres.user", startMode.dbUsername)
+                koin.setProperty("postgres.password", startMode.dbPassword)
+            }
+            else -> {
+                koin.setProperty("postgres.url", environment.config.property("postgres.url").getString())
+                koin.setProperty("postgres.user", environment.config.property("postgres.user").getString())
+                koin.setProperty("postgres.password", environment.config.property("postgres.password").getString())
+            }
+        }
         slf4jLogger()
         modules(databaseModule,
             module {

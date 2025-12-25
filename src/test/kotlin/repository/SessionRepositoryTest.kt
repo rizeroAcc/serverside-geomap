@@ -1,6 +1,6 @@
 package com.mapprjct.dao
 
-import com.mapprjct.database.dao.SessionRepository
+import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
 import com.mapprjct.database.tables.SessionTable
 import com.mapprjct.model.APISession

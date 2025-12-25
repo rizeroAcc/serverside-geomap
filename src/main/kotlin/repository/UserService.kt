@@ -2,7 +2,7 @@ package com.mapprjct.repository
 
 import com.mapprjct.ElementAlreadyExistsException
 import com.mapprjct.dto.User
-import com.mapprjct.database.dao.UserRepository
+import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.dto.UserCredentials
 
 class UserService(val userRepository: UserRepository) {

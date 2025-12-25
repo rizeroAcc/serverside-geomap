@@ -1,6 +1,6 @@
 package com.mapprjct.database.storage
 
-import com.mapprjct.database.dao.SessionRepository
+import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.model.APISession
 import io.ktor.server.sessions.SessionStorage
 import kotlinx.serialization.json.Json

@@ -10,17 +10,28 @@ import com.mapprjct.controller.configureProjectsController
 import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 
-fun main(args: Array<String>) {
-    EngineMain.main(args)
-
+sealed class ApplicationStartMode(){
+    data object DEBUG : ApplicationStartMode()
+    data object RELEASE : ApplicationStartMode()
+    data class TEST(
+        val dbURL : String,
+        val dbUsername : String,
+        val dbPassword : String
+    ) : ApplicationStartMode()
 }
 
-fun Application.module() {
-    configureKoin()
+fun main(args: Array<String>) {
+    EngineMain.main(args)
+}
+
+fun Application.module(startMode: ApplicationStartMode = ApplicationStartMode.DEBUG) {
+    configureKoin(startMode)
+
     configureSecurity()
     configurePlugins()
     configureAuthenticationController()
     configureProjectsController()
     configureProfileController()
+
     configureDBTables(clearTables = false)
 }

@@ -1,4 +1,4 @@
-package com.mapprjct.database.dao
+package com.mapprjct.database.repository
 
 interface SessionRepository {
     suspend fun upsert(id: String, value: String, phone: String)

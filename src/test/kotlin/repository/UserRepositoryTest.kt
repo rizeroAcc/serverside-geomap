@@ -1,6 +1,6 @@
 package com.mapprjct.dao
 
-import com.mapprjct.database.dao.UserRepository
+import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.daoimpl.UserRepositoryImpl
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.dto.User

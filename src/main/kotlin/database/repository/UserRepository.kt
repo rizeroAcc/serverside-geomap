@@ -1,4 +1,4 @@
-package com.mapprjct.database.dao
+package com.mapprjct.database.repository
 
 import com.mapprjct.dto.UserCredentials
 import com.mapprjct.dto.User

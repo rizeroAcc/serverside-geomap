@@ -1,8 +1,8 @@
 package com.mapprjct.repository
 
 import com.mapprjct.NotFoundException
-import com.mapprjct.database.dao.InvitationRepository
-import com.mapprjct.database.dao.ProjectRepository
+import com.mapprjct.database.repository.InvitationRepository
+import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.dto.Project
 import com.mapprjct.dto.ProjectWithRole
 import com.mapprjct.dto.Role
@@ -64,11 +64,7 @@ class ProjectService(
             role = role.asRole()
         )
         val invitation = invitationRepository.insertInvitationCode(newInvitation)
-        return if (invitation == null){
-            Result.failure(IllegalStateException("User have over five invitations in this project"))
-        }else{
-            Result.success(invitation)
-        }
+        return invitation
     }
     //todo make check to
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{

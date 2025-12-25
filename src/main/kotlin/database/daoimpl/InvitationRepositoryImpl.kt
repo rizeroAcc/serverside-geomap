@@ -1,6 +1,6 @@
 package com.mapprjct.database.daoimpl
 
-import com.mapprjct.database.dao.InvitationRepository
+import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.dto.asRole
 import com.mapprjct.model.Invitation
@@ -15,7 +15,7 @@ import java.util.UUID
 class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
     override suspend fun insertInvitationCode(
         invitation : Invitation
-    ): Invitation? {
+    ): Result<Invitation> {
         val createdInvitation = transaction(database) {
             val inviteCodeCount = InviteCodeTable.selectAll().where{
                 InviteCodeTable.inviterPhone eq invitation.inviterPhone
@@ -34,7 +34,11 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
                 return@transaction null
             }
         }
-        return createdInvitation
+        return if (createdInvitation != null) {
+            Result.success(createdInvitation)
+        }else {
+            Result.failure(IllegalArgumentException("Attempt to register over five invitations"))
+        }
     }
 
     override suspend fun getInvitation(code: UUID): Invitation? {
@@ -53,9 +57,11 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
         }
     }
 
-    override suspend fun deleteInvitationCode(invitation: Invitation) {
-        InviteCodeTable.deleteWhere{
-            InviteCodeTable.inviteCode eq invitation.inviteCode
+    override suspend fun deleteInvitationCode(invitation: Invitation) : Int {
+        return transaction(database) {
+            InviteCodeTable.deleteWhere {
+                InviteCodeTable.inviteCode eq invitation.inviteCode
+            }
         }
     }
 }
