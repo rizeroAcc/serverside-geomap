@@ -1,14 +1,14 @@
 package com.mapprjct.controller
 
-import com.mapprjct.NotFoundException
+import com.mapprjct.exceptions.NotFoundException
 import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
 import com.mapprjct.model.APISession
-import com.mapprjct.repository.ProjectService
-import com.mapprjct.request.CreateProjectRequest
-import com.mapprjct.request.InviteUserRequest
-import com.mapprjct.request.JoinToProjectRequest
-import com.mapprjct.response.CreateInvitationResponse
-import com.mapprjct.response.GetAllUserProjectsResponse
+import com.mapprjct.service.ProjectService
+import com.mapprjct.model.request.CreateProjectRequest
+import com.mapprjct.model.request.InviteUserRequest
+import com.mapprjct.model.request.JoinToProjectRequest
+import com.mapprjct.model.response.CreateInvitationResponse
+import com.mapprjct.model.response.GetAllUserProjectsResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate

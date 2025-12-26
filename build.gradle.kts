@@ -45,5 +45,7 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
 
+    testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
+
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.3")
 }

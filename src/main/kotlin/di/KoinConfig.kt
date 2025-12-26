@@ -10,10 +10,11 @@ import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
 import com.mapprjct.database.daoimpl.UserRepositoryImpl
 import com.mapprjct.database.storage.PostgresSessionStorage
-import com.mapprjct.repository.ProjectService
-import com.mapprjct.repository.UserService
+import com.mapprjct.service.ProjectService
+import com.mapprjct.service.UserService
 import io.ktor.server.application.*
 import io.ktor.server.sessions.SessionStorage
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -37,7 +38,7 @@ fun Application.configureKoin(startMode: ApplicationStartMode) {
             module {
                 single<SessionStorage> { PostgresSessionStorage(get()) }
 
-                single<UserService> { UserService(get()) }
+                single<UserService> { UserService(get(), get<Database>()) }
                 single<ProjectService> { ProjectService(get(),get()) }
 
                 single<UserRepository> { UserRepositoryImpl(get()) }

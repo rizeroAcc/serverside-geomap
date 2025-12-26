@@ -1,8 +1,11 @@
 package com.mapprjct
 
+import com.mapprjct.model.request.RegistrationRequest
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.testing.*
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.testcontainers.containers.PostgreSQLContainer
@@ -23,8 +26,18 @@ class ApplicationTest {
             .withReuse(true)
     }
 
+    @BeforeAll
+    fun initialize() {
+
+    }
+
     @Test
-    fun testRoot() = testApplication {
+    fun `should register new user in system`() = testApplication {
+        client = client.config {
+            install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+        }
         application {
             module(
                 startMode = ApplicationStartMode.TEST(
@@ -34,9 +47,18 @@ class ApplicationTest {
                 )
             )
         }
-        client.get("/").apply {
-            assertEquals(HttpStatusCode.OK, status)
+
+        val registrationRequest = RegistrationRequest(
+            phone = "89036559989",
+            username = "Kirill",
+            password = "testPassword"
+        )
+
+        val response = client.post("/register"){
+            contentType(ContentType.Application.Json)
+            setBody(registrationRequest)
         }
+        assertEquals(HttpStatusCode.Created, response.status)
     }
 
 }

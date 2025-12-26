@@ -2,12 +2,12 @@ package com.mapprjct.controller
 
 import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.model.APISession
-import com.mapprjct.dto.UserCredentials
-import com.mapprjct.repository.UserService
-import com.mapprjct.request.ChangePasswordRequest
-import com.mapprjct.request.ChangeUserInfoRequest
-import com.mapprjct.response.AvatarUpdateResponse
-import com.mapprjct.response.ChangePasswordResponse
+import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.service.UserService
+import com.mapprjct.model.request.ChangePasswordRequest
+import com.mapprjct.model.request.ChangeUserInfoRequest
+import com.mapprjct.model.response.AvatarUpdateResponse
+import com.mapprjct.model.response.ChangePasswordResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData

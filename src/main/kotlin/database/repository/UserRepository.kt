@@ -1,7 +1,7 @@
 package com.mapprjct.database.repository
 
-import com.mapprjct.dto.UserCredentials
-import com.mapprjct.dto.User
+import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.model.dto.User
 
 interface UserRepository {
     suspend fun insert(user: User, password : String)

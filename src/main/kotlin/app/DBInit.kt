@@ -6,8 +6,8 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.SessionTable
 import com.mapprjct.database.tables.UserTable
 import io.ktor.server.application.Application
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 fun Application.configureDBTables(clearTables : Boolean = false) {
     transaction {

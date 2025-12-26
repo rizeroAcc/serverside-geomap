@@ -1,13 +1,13 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.storage.PostgresSessionStorage
-import com.mapprjct.request.SignInRequest
-import com.mapprjct.request.toUserCredentialsDTO
+import com.mapprjct.model.request.SignInRequest
+import com.mapprjct.model.request.toUserCredentialsDTO
 import com.mapprjct.model.APISession
-import com.mapprjct.response.SignInResponse
-import com.mapprjct.request.RegistrationRequest
-import com.mapprjct.request.toUserCredentialsDto
-import com.mapprjct.repository.UserService
+import com.mapprjct.model.response.SignInResponse
+import com.mapprjct.model.request.RegistrationRequest
+import com.mapprjct.model.request.toUserCredentialsDto
+import com.mapprjct.service.UserService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
@@ -66,7 +66,7 @@ fun Application.configureAuthenticationController() {
             )
             registrationResult.fold(
                 onSuccess = { user->
-                    call.respond(HttpStatusCode.OK, "Created")
+                    call.respond(HttpStatusCode.Created, "Created")
                 },
                 onFailure = {
                     call.respond(

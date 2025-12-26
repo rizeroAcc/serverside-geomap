@@ -1,7 +1,6 @@
 package com.mapprjct.model
 
-import com.mapprjct.dto.Role
-import kotlinx.serialization.Serializable
+import com.mapprjct.model.dto.Role
 import java.util.UUID
 
 data class Invitation(

@@ -1,7 +1,6 @@
 package com.mapprjct.database.tables
 
-import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object ProjectUsersTable : Table("project_users") {
     val projectId = uuid("project_id").references(ProjectTable.id)
