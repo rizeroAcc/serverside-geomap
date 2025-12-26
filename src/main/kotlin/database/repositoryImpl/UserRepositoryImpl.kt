@@ -1,5 +1,6 @@
 package com.mapprjct.database.daoimpl
 
+import com.mapprjct.database.entity.UserEntity
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.dto.UserCredentials
@@ -64,16 +65,22 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
      * */
     override suspend fun updateUser(user: User): Int {
         return transaction(database) {
-            UserTable.update(
-                where = {
-                    UserTable.phone eq user.phone
-                },
-                body = {
-                    //in future can be more fields
-                    it[UserTable.username] = user.username
-                    it[UserTable.avatar] = user.avatarPath
-                }
-            )
+//            UserTable.update(
+//                where = {
+//                    UserTable.phone eq user.phone
+//                },
+//                body = {
+//                    //in future can be more fields
+//                    it[UserTable.username] = user.username
+//                    it[UserTable.avatar] = user.avatarPath
+//                }
+//            )
+            UserEntity.findSingleByAndUpdate(
+                UserTable.phone eq user.phone
+            ){ editableUser ->
+                editableUser.username = user.username
+                editableUser.avatar = user.avatarPath
+            }?.let{1} ?: 0
         }
     }
 

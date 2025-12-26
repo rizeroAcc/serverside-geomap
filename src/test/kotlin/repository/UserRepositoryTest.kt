@@ -81,7 +81,7 @@ class UserRepositoryTest{
         transaction(database) {
             UserTable.selectAll().single().let {
                 assertEquals(user.username, it[UserTable.username])
-                assertEquals(user.phone, it[UserTable.phone])
+                assertEquals(user.phone, it[UserTable.phone].value)
                 assertEquals(user.avatarPath, it[UserTable.avatar])
                 assertEquals("test", it[UserTable.passwordHash])
             }
