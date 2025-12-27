@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -76,14 +77,16 @@ class UserRepositoryTest{
             avatarPath = null
         )
 
-        userRepository.insert(user = user, "test")
-
-        transaction(database) {
+        suspendTransaction {
+            userRepository.insert(user = user, "test")
+        }
+        suspendTransaction {
+            //check
             UserTable.selectAll().single().let {
-                assertEquals(user.username, it[UserTable.username])
-                assertEquals(user.phone, it[UserTable.phone].value)
-                assertEquals(user.avatarPath, it[UserTable.avatar])
-                assertEquals("test", it[UserTable.passwordHash])
+                assertEquals(expected = user.username, it[UserTable.username])
+                assertEquals(expected = user.phone, it[UserTable.phone].value)
+                assertEquals(expected = user.avatarPath, it[UserTable.avatar])
+                assertEquals(expected = "test", it[UserTable.passwordHash])
             }
         }
     }
@@ -97,13 +100,18 @@ class UserRepositoryTest{
         )
         val dao = userRepository
 
-        dao.insert(user = user, "test")
+        suspendTransaction {
+            dao.insert(user = user, "test")
+        }
         val result = runCatching {
-            dao.insert(user = user, "test1")
+            suspendTransaction {
+                dao.insert(user = user, "test1")
+            }
         }
 
         assertNotNull(result.exceptionOrNull())
         assertTrue(((result.exceptionOrNull() as ExposedSQLException).cause as SQLException).message!!.contains("unique constraint"))
+
     }
 
     @Test
@@ -118,14 +126,17 @@ class UserRepositoryTest{
             username = "",
             avatarPath = null
         )
-
         var result = runCatching {
-            userRepository.insert(user = userWithInvalidPhone, "test")
+            suspendTransaction {
+                userRepository.insert(user = userWithInvalidPhone, "test")
+            }
         }
         assertNotNull(result.exceptionOrNull())
 
         result = runCatching {
-            userRepository.insert(userWithEmptyUsername, "test")
+            suspendTransaction {
+                userRepository.insert(userWithEmptyUsername, "test")
+            }
         }
         assertNotNull(result.exceptionOrNull())
     }
@@ -133,33 +144,41 @@ class UserRepositoryTest{
     @Test
     fun `should receive existing user`() = runTest {
         val userToInsert = User(phone = "89036559989", username = "test", avatarPath = null)
-        userRepository.insert(userToInsert, "test")
+        suspendTransaction {
+            userRepository.insert(userToInsert, "test")
+        }
+        suspendTransaction {
+            val user = userRepository.getUser("89036559989")
 
-        val user = userRepository.getUser("89036559989")
-
-        assertNotNull(user)
-        assertEquals(userToInsert, user)
+            assertNotNull(user)
+            assertEquals(userToInsert, user)
+        }
     }
 
     @Test
     fun `should return null if user does not exist`() = runTest {
+        suspendTransaction {
+            val result = userRepository.getUser("89036559989")
 
-        val result = userRepository.getUser("89036559989")
-
-        assertNull(result)
+            assertNull(result)
+        }
     }
 
     @Test
     fun `should update user fields except phone and password`() = runTest {
         val user = User(phone = "89036559989", username = "test", avatarPath = null)
         val updatedUserInfo = user.copy(username = "newTest", avatarPath = "testPath")
-        userRepository.insert(user, "testPassword")
-
-        val updatedRowsCount = userRepository.updateUser(updatedUserInfo)
-        assertEquals(1, updatedRowsCount)
-
-        val updatedUser = userRepository.getUser("89036559989")
-        assertEquals(updatedUserInfo,updatedUser)
+        suspendTransaction {
+            userRepository.insert(user, "testPassword")
+        }
+        suspendTransaction {
+            userRepository.updateUser(updatedUserInfo)
+        }
+        suspendTransaction {
+            val updatedUser = userRepository.getUser(user.phone)
+            assertNotNull(updatedUser)
+            assertEquals(updatedUserInfo,updatedUser)
+        }
     }
 
     @Test
@@ -169,19 +188,23 @@ class UserRepositoryTest{
             username = "testName",
             avatarPath = null
         )
-
-        userRepository.insert(user, "testPassword")
-        val receivedCredentials = userRepository.getUserCredentials("89036559989")
-        assertNotNull(receivedCredentials)
-
-        val expectedCredentials = UserCredentials(phone = "89036559989", password = "testPassword")
-        assertEquals(expectedCredentials, receivedCredentials)
+        suspendTransaction {
+            userRepository.insert(user, "testPassword")
+        }
+        suspendTransaction {
+            val expectedCredentials = UserCredentials(phone = "89036559989", password = "testPassword")
+            val receivedCredentials = userRepository.getUserCredentials("89036559989")
+            assertNotNull(receivedCredentials)
+            assertEquals(expectedCredentials, receivedCredentials)
+        }
     }
 
     @Test
     fun `should receive null when user doesn't exist`() = runTest {
-        val receivedCredentials = userRepository.getUserCredentials("89036559989")
-        assertNull(receivedCredentials)
+        suspendTransaction {
+            val receivedCredentials = userRepository.getUserCredentials("89036559989")
+            assertNull(receivedCredentials)
+        }
     }
 
     @Test
@@ -195,15 +218,20 @@ class UserRepositoryTest{
             avatarPath = null
         )
         val oldCredentials = UserCredentials(phone = phone, password = password)
-        userRepository.insert(user, password)
-
-        var receivedCredentials = userRepository.getUserCredentials("89036559989")
-        assertEquals(oldCredentials, receivedCredentials)
-
+        suspendTransaction {
+            userRepository.insert(user, password)
+        }
+        suspendTransaction {
+            val receivedCredentials = userRepository.getUserCredentials("89036559989")
+            assertEquals(oldCredentials, receivedCredentials)
+        }
         val newPassword = "newPassword"
-        userRepository.updateUserPassword(userPhone = phone, password = newPassword)
-        receivedCredentials = userRepository.getUserCredentials("89036559989")
-        assertEquals(newPassword, receivedCredentials!!.password)
-
+        suspendTransaction {
+            userRepository.updateUserPassword(userPhone = phone, password = newPassword)
+        }
+        suspendTransaction {
+            val receivedCredentials = userRepository.getUserCredentials("89036559989")
+            assertEquals(newPassword, receivedCredentials!!.password)
+        }
     }
 }

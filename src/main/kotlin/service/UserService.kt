@@ -8,6 +8,7 @@ import com.mapprjct.exceptions.domain.InvalidDataException
 import com.mapprjct.utils.CredentialsValidator
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 
 class UserService(
     val userRepository: UserRepository,
@@ -26,7 +27,7 @@ class UserService(
         if (!CredentialsValidator.validatePassword(userCredentials.password)){
             return Result.failure(InvalidDataException(details = "Password must have at least eight characters"))
         }
-        newSuspendedTransaction {
+        suspendTransaction {
 
         }
         val existingUser = userRepository.getUser(userCredentials.phone)

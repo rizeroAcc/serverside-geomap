@@ -16,72 +16,46 @@ import org.jetbrains.exposed.v1.jdbc.update
 class UserRepositoryImpl(val database: Database) : UserRepository {
 
     override suspend fun insert(user: User, password : String){
-        transaction(database) {
-            UserTable.insert {
-                it[phone] = user.phone.replaceRussiaCountryCode()
-                it[UserTable.username] = user.username
-                it[passwordHash] = password
-                it[avatar] = user.avatarPath
-            }
+        UserEntity.new(
+            id = user.phone.replaceRussiaCountryCode()
+        ) {
+            this.username = user.username
+            this.password = password
+            this.avatar = user.avatarPath
         }
     }
 
     override suspend fun getUser(phone : String) : User?{
-        return transaction(database) {
-            UserTable.selectAll().where {UserTable.phone eq phone.replaceRussiaCountryCode()}.singleOrNull()
-        }?.let {
-            User(
-                phone = it[UserTable.phone].value,
-                username = it[UserTable.username],
-                avatarPath = it[UserTable.avatar],
-           )
-        }
+        return UserEntity.findById(
+            phone.replaceRussiaCountryCode()
+        )?.toUser()
     }
 
     override suspend fun getUserCredentials(phone: String): UserCredentials? {
-        return transaction(database) {
-            UserTable.selectAll().where { UserTable.phone eq phone.replaceRussiaCountryCode() }.singleOrNull()
-        }?.let {
-            UserCredentials(
-                phone = it[UserTable.phone].value ,
-                password = it[UserTable.passwordHash]
-            )
-        }
+        return UserEntity.findById(
+            phone.replaceRussiaCountryCode()
+        )?.toUserCredentials()
     }
 
 
-    override suspend fun updateUserPassword(userPhone : String, password: String): Int {
-        return transaction(database) {
-            UserTable.update(
-                where = { UserTable.phone eq userPhone.replaceRussiaCountryCode() },
-            ) {
-                it[UserTable.passwordHash] = password
-            }
-        }
+    override suspend fun updateUserPassword(userPhone : String, password: String): UserCredentials? {
+        return UserEntity.findSingleByAndUpdate(
+            UserTable.phone eq userPhone.replaceRussiaCountryCode()
+        ){ userEntity ->
+            userEntity.password = password
+        }?.toUserCredentials()
     }
 
     /**
      * Update all fields without phone
      * */
-    override suspend fun updateUser(user: User): Int {
-        return transaction(database) {
-//            UserTable.update(
-//                where = {
-//                    UserTable.phone eq user.phone
-//                },
-//                body = {
-//                    //in future can be more fields
-//                    it[UserTable.username] = user.username
-//                    it[UserTable.avatar] = user.avatarPath
-//                }
-//            )
-            UserEntity.findSingleByAndUpdate(
+    override suspend fun updateUser(user: User): User? {
+        return UserEntity.findSingleByAndUpdate(
                 UserTable.phone eq user.phone
-            ){ editableUser ->
-                editableUser.username = user.username
-                editableUser.avatar = user.avatarPath
-            }?.let{1} ?: 0
-        }
+            ){ userEntity ->
+                userEntity.username = user.username
+                userEntity.avatar = user.avatarPath
+            }?.toUser()
     }
 
 
