@@ -2,8 +2,8 @@ package com.mapprjct.dao
 
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.UserRepository
-import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
-import com.mapprjct.database.daoimpl.UserRepositoryImpl
+import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
+import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
@@ -18,6 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -83,102 +84,110 @@ class ProjectRepositoryTest {
             SchemaUtils.create(ProjectTable, ProjectUsersTable)
         }
     }
-    @AfterEach
-    fun tearDown(){
-        transaction { SchemaUtils.drop(ProjectTable, ProjectUsersTable) }
-    }
 
     @Test
     fun `should receive existing project`() = runTest{
-        val projectUUID = UUID.randomUUID()
-        val testProjectName = "testProject"
-        transaction(database) {
+        suspendTransaction {
+            //given
+            val projectUUID = UUID.randomUUID()
+            val testProjectName = "testProject"
             ProjectTable.insert {
                 it[ProjectTable.id] = projectUUID
                 it[ProjectTable.name] = testProjectName
                 it[ProjectTable.membersCount] = 1
             }
+            val expectedProject = Project(
+                projectID = projectUUID.toString(),
+                name = testProjectName,
+                membersCount = 1
+            )
+            //when
+            val receivedProject = projectRepository.getProjectById(projectUUID)
+            //then
+            assertNotNull(receivedProject)
+            assertEquals(expectedProject, receivedProject)
         }
-
-        val receivedProject = projectRepository.getProjectById(projectUUID)
-        val expectedProject = Project(
-            projectID = projectUUID.toString(),
-            name = testProjectName,
-            membersCount = 1
-        )
-
-        assertNotNull(receivedProject)
-        assertEquals(expectedProject, receivedProject)
-
     }
 
     @Test
     fun `should insert project and create record in ProjectUsersTable`() = runTest{
-        val userPhone = testUser1.phone
-        val createdProject = projectRepository.insertProject(testUser1.phone,"testProject")
+        suspendTransaction {
+            //given
+            val userPhone = testUser1.phone
+            //when
+            val createdProject = projectRepository.insertProject(testUser1.phone,"testProject")
+            val receivedProject = projectRepository.getProjectById(
+                UUID.fromString(createdProject.projectID)
+            )
 
-        //check project saved
-        val receivedProject = projectRepository.getProjectById(
-            UUID.fromString(createdProject.projectID)
-        )
-        assertNotNull(receivedProject)
-        assertEquals(createdProject,receivedProject)
-
-        //check record add to user-project table
-        val result = transaction(database) {
-            ProjectUsersTable.selectAll().singleOrNull()
+            //then
+            assertNotNull(receivedProject)
+            assertEquals(createdProject,receivedProject)
+            //check record add to user-project table
+            val result = transaction(database) {
+                ProjectUsersTable.selectAll().singleOrNull()
+            }
+            assertNotNull(result)
+            assertEquals(createdProject.projectID, result[ProjectUsersTable.projectId].toString())
+            assertEquals(userPhone, result[ProjectUsersTable.userPhone])
+            assertEquals(Role.Owner.toShort(), result[ProjectUsersTable.role])
         }
-        assertNotNull(result)
-        assertEquals(createdProject.projectID, result[ProjectUsersTable.projectId].toString())
-        assertEquals(userPhone, result[ProjectUsersTable.userPhone])
-        assertEquals(Role.Owner.toShort(), result[ProjectUsersTable.role])
     }
 
     @Test
     fun `should receive all user projects`() = runTest{
-        val userPhone = testUser1.phone
-        val projectList = listOf(
-            projectRepository.insertProject(testUser1.phone, "testProject"),
-            projectRepository.insertProject(testUser1.phone, "testProject2"),
-            projectRepository.insertProject(testUser1.phone, "testProject3")
-        )
-
-        val receivedProjects = projectRepository.getAllUserProjects(userPhone)
-
-        projectList.forEachIndexed { i, project ->
-            assertEquals(project, receivedProjects[i].project)
+        suspendTransaction {
+            //given
+            val userPhone = testUser1.phone
+            val projectList = listOf(
+                projectRepository.insertProject(testUser1.phone, "testProject"),
+                projectRepository.insertProject(testUser1.phone, "testProject2"),
+                projectRepository.insertProject(testUser1.phone, "testProject3")
+            )
+            //when
+            val receivedProjects = projectRepository.getAllUserProjects(userPhone)
+            //then
+            projectList.forEachIndexed { i, project ->
+                assertEquals(project, receivedProjects[i].project)
+            }
         }
     }
 
     @Test
     fun `should insert new record in ProjectUsersTable and increment members count in Project table after insert new member`() = runTest{
-        val inviterPhone = testUser1.phone
-        val invitableUserPhone = testUser2.phone
-        val project = projectRepository.insertProject(inviterPhone,"testProject")
-
-        projectRepository.addMemberToProject(invitableUserPhone, project = project, role = Role.Admin)
-
-        val updatedProject = projectRepository.getProjectById(UUID.fromString(project.projectID))!!
-        assertEquals(2,updatedProject.membersCount)
-
-        val result = transaction(database) {
-            ProjectUsersTable.selectAll().where{
-                (ProjectUsersTable.userPhone eq invitableUserPhone).and {
-                    ProjectUsersTable.projectId eq UUID.fromString(project.projectID)
-                }
-            }.singleOrNull()
+        suspendTransaction {
+            //given
+            val inviterPhone = testUser1.phone
+            val invitableUserPhone = testUser2.phone
+            val project = projectRepository.insertProject(inviterPhone,"testProject")
+            //when
+            projectRepository.addMemberToProject(invitableUserPhone, project = project, role = Role.Admin)
+            //then
+            val updatedProject = projectRepository.getProjectById(UUID.fromString(project.projectID))!!
+            assertEquals(2,updatedProject.membersCount)
+            val result = transaction(database) {
+                ProjectUsersTable.selectAll().where{
+                    (ProjectUsersTable.userPhone eq invitableUserPhone).and {
+                        ProjectUsersTable.projectId eq UUID.fromString(project.projectID)
+                    }
+                }.singleOrNull()
+            }
+            assertNotNull(result)
         }
-        assertNotNull(result)
     }
 
     @Test
     fun `should throw error if user already project member`() = runTest{
-        val inviterPhone = testUser1.phone
-        val project = projectRepository.insertProject(inviterPhone,"testProject")
-
-        val result = runCatching {
-            projectRepository.addMemberToProject(inviterPhone, project = project, role = Role.Admin)
+        suspendTransaction {
+            //given
+            val inviterPhone = testUser1.phone
+            val project = projectRepository.insertProject(inviterPhone,"testProject")
+            //when
+            val result = runCatching {
+                projectRepository.addMemberToProject(inviterPhone, project = project, role = Role.Admin)
+            }
+            //then
+            assertNotNull(result.exceptionOrNull())
         }
-        assertNotNull(result.exceptionOrNull())
     }
 }

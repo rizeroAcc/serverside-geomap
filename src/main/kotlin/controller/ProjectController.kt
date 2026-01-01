@@ -1,7 +1,6 @@
 package com.mapprjct.controller
 
-import com.mapprjct.exceptions.NotFoundException
-import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
+import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
 import com.mapprjct.model.APISession
 import com.mapprjct.service.ProjectService
 import com.mapprjct.model.request.CreateProjectRequest
@@ -13,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
+import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get

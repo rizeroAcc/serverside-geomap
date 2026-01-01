@@ -1,4 +1,4 @@
-package com.mapprjct.database.daoimpl
+package com.mapprjct.database.repositoryImpl
 
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.tables.ProjectTable
@@ -19,89 +19,80 @@ import java.util.UUID
 class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
 
     override suspend fun getAllUserProjects(userPhone: String): List<ProjectWithRole> {
-        return transaction(database) {
-            (ProjectUsersTable innerJoin ProjectTable)
-                .select(
-                    ProjectTable.id ,
-                    ProjectTable.name ,
-                    ProjectTable.membersCount ,
-                    ProjectUsersTable.role
+        return (ProjectUsersTable innerJoin ProjectTable)
+            .select(
+                ProjectTable.id,
+                ProjectTable.name,
+                ProjectTable.membersCount,
+                ProjectUsersTable.role
+            )
+            .where {
+                ProjectUsersTable.userPhone eq userPhone.replaceRussiaCountryCode()
+            }
+            .map { result->
+                ProjectWithRole(
+                    project = Project(
+                        projectID = result[ProjectTable.id].toString() ,
+                        name = result[ProjectTable.name] ,
+                        membersCount = result[ProjectTable.membersCount].toInt()
+                    ),
+                    role = result[ProjectUsersTable.role].toInt()
                 )
-                .where {
-                    ProjectUsersTable.userPhone eq userPhone.replaceRussiaCountryCode()
-                }
-                .map { result ->
-                    ProjectWithRole(
-                        project = Project(
-                            projectID = result[ProjectTable.id].toString() ,
-                            name = result[ProjectTable.name] ,
-                            membersCount = result[ProjectTable.membersCount].toInt()
-                        ) ,
-                        role = result[ProjectUsersTable.role].toInt()
-                    )
-                }
-        }
+            }
     }
 
     override suspend fun insertProject(
         creatorPhone: String,
         projectName: String
     ): Project {
-        val truncatedPhone = creatorPhone.replaceRussiaCountryCode()
+        val standardPhone = creatorPhone.replaceRussiaCountryCode()
         val newProjectUUID = UUID.randomUUID()
-        transaction(database) {
-            ProjectTable.insert {
-                it[ProjectTable.name] = projectName
-                it[ProjectTable.id] = newProjectUUID
-                it[ProjectTable.membersCount] = 1
-            }
-            ProjectUsersTable.insert {
-                it[ProjectUsersTable.projectId] = newProjectUUID
-                it[ProjectUsersTable.userPhone] = truncatedPhone
-                it[ProjectUsersTable.role] = 1
-            }
+        ProjectTable.insert {
+            it[ProjectTable.name] = projectName
+            it[ProjectTable.id] = newProjectUUID
+            it[ProjectTable.membersCount] = 1
+        }
+        ProjectUsersTable.insert {
+            it[ProjectUsersTable.projectId] = newProjectUUID
+            it[ProjectUsersTable.userPhone] = standardPhone
+            it[ProjectUsersTable.role] = 1
         }
         return Project(
-            projectID = newProjectUUID.toString() ,
-            name = projectName ,
-            membersCount = 1 ,
+            projectID = newProjectUUID.toString(),
+            name = projectName,
+            membersCount = 1,
         )
     }
 
     override suspend fun getProjectById(projectId: UUID): Project? {
-        return transaction(database) {
-            ProjectTable.selectAll().where{
-                ProjectTable.id eq projectId
-            }.singleOrNull()?.let {
+        return ProjectTable
+            .selectAll()
+            .where{ ProjectTable.id eq projectId }
+            .singleOrNull()?.let {
                 Project(
                     projectID = it[ProjectTable.id].toString(),
                     name = it[ProjectTable.name],
                     membersCount = it[ProjectTable.membersCount].toInt()
                 )
             }
-        }
     }
 
     override suspend fun addMemberToProject(
-        userPhone: String,
-        project: Project,
-        role: Role
+        userPhone : String,
+        project : Project,
+        role : Role
     ) {
         val projectUUID = UUID.fromString(project.projectID)
-        transaction(database) {
-            ProjectUsersTable.insert {
-                it[ProjectUsersTable.userPhone] = userPhone
-                it[ProjectUsersTable.projectId] = projectUUID
-                it[ProjectUsersTable.role] = role.toShort()
-            }
-            ProjectTable.update(
-                where = { ProjectTable.id eq projectUUID },
-                body = {
-                    it[ProjectTable.membersCount] = (project.membersCount + 1).toShort()
-                }
-            )
+        ProjectUsersTable.insert {
+            it[ProjectUsersTable.userPhone] = userPhone
+            it[ProjectUsersTable.projectId] = projectUUID
+            it[ProjectUsersTable.role] = role.toShort()
         }
+        ProjectTable.update(
+            where = { ProjectTable.id eq projectUUID },
+            body = {
+                it[ProjectTable.membersCount] = (project.membersCount + 1).toShort()
+            }
+        )
     }
-
-
 }

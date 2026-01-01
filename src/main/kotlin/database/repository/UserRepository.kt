@@ -8,5 +8,5 @@ interface UserRepository {
     suspend fun getUser(phone : String) : User?
     suspend fun getUserCredentials(phone : String) : UserCredentials?
     suspend fun updateUserPassword(userPhone : String, password : String) : Int
-    suspend fun updateUser(user : User) : Int
+    suspend fun updateUser(user : User) : User?
 }

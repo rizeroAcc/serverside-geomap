@@ -6,9 +6,9 @@ import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
-import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
+import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
-import com.mapprjct.database.daoimpl.UserRepositoryImpl
+import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.service.ProjectService
 import com.mapprjct.service.UserService

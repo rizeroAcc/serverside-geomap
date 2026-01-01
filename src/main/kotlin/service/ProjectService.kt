@@ -1,6 +1,5 @@
 package com.mapprjct.service
 
-import com.mapprjct.exceptions.NotFoundException
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.model.dto.Project
@@ -44,7 +43,7 @@ class ProjectService(
         }
 
         val project = projectRepository.getProjectById(projectUUID)
-            ?: return Result.failure(NotFoundException("Project with ID $projectID not found"))
+            ?: return Result.failure(IllegalStateException("Project with ID $projectID not found"))
 
         var invitationRole : Role? = null
 
@@ -72,7 +71,7 @@ class ProjectService(
             code = UUID.fromString(invitationCode)
         )
         if (invitation == null){
-            return Result.failure(NotFoundException(
+            return Result.failure(IllegalArgumentException(
                 "Invitation ${invitationCode} not found, may be it expired"
             ))
         }
@@ -81,7 +80,7 @@ class ProjectService(
         }
         val project = projectRepository.getProjectById(invitation.projectID)
         if (project == null){
-            return Result.failure(NotFoundException(
+            return Result.failure(IllegalStateException(
                 "Project with ID ${invitation.projectID} not found, may be it was deleted")
             )
         }

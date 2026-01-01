@@ -4,8 +4,8 @@ import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
-import com.mapprjct.database.daoimpl.ProjectRepositoryImpl
-import com.mapprjct.database.daoimpl.UserRepositoryImpl
+import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
+import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -88,18 +89,14 @@ class InvitationRepositoryTest {
         }
     }
 
-    @AfterEach
-    fun tearDown() {
-        transaction(database) {
-            SchemaUtils.drop(InviteCodeTable)
-        }
-    }
+
 
     @Test
     fun `should receive existing invitation`() = runTest{
-        val invitationCode = UUID.randomUUID()
-        val expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24
-        transaction(database) {
+        suspendTransaction {
+            //given
+            val invitationCode = UUID.randomUUID()
+            val expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24
             InviteCodeTable.insert{
                 it[InviteCodeTable.inviterPhone] = invitedUser.phone
                 it[InviteCodeTable.inviteCode] = invitationCode
@@ -107,31 +104,19 @@ class InvitationRepositoryTest {
                 it[InviteCodeTable.role] = Role.Admin.toShort()
                 it[InviteCodeTable.expireAt] = expireAt
             }
+            //when
+            val invitation = invitationRepository.getInvitation(invitationCode)
+            //then
+            assertNotNull(invitation)
+            assertEquals(expireAt, invitation.expireAt)
+            assertEquals(invitationCode, invitation.inviteCode)
         }
-        val invitation = invitationRepository.getInvitation(invitationCode)
-        assertNotNull(invitation)
-        assertEquals(expireAt, invitation.expireAt)
-        assertEquals(invitationCode, invitation.inviteCode)
     }
 
     @Test
     fun `should insert invitation`() = runTest {
-        val invitation = Invitation(
-            inviterPhone = invitedUser.phone,
-            inviteCode = UUID.randomUUID(),
-            projectID = UUID.fromString(project.projectID),
-            expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
-            role = Role.Worker,
-        )
-        val insertedInvitation = invitationRepository.insertInvitationCode(invitation).getOrNull()
-        assertNotNull(insertedInvitation)
-        assertEquals(invitation, insertedInvitation)
-    }
-
-    @Test
-    fun `should return error, when inserting over 5 invitation per user`() = runTest {
-        //prepare 5 invitations
-        for (i in 1..5) {
+        suspendTransaction {
+            //given
             val invitation = Invitation(
                 inviterPhone = invitedUser.phone,
                 inviteCode = UUID.randomUUID(),
@@ -139,36 +124,62 @@ class InvitationRepositoryTest {
                 expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
                 role = Role.Worker,
             )
-            invitationRepository.insertInvitationCode(invitation)
+            //when
+            val insertedInvitation = invitationRepository.insertInvitationCode(invitation).getOrNull()
+            //then
+            assertNotNull(insertedInvitation)
+            assertEquals(invitation, insertedInvitation)
         }
+    }
 
-        val invitation = Invitation(
-            inviterPhone = invitedUser.phone,
-            inviteCode = UUID.randomUUID(),
-            projectID = UUID.fromString(project.projectID),
-            expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
-            role = Role.Worker,
-        )
-        val insertedInvitation = invitationRepository.insertInvitationCode(invitation)
-        assertNotNull(insertedInvitation.exceptionOrNull())
+    @Test
+    fun `should return error, when inserting over 5 invitation per user`() = runTest {
+        suspendTransaction {
+            //given
+            //prepare 5 invitations
+            for (i in 1..5) {
+                val invitation = Invitation(
+                    inviterPhone = invitedUser.phone,
+                    inviteCode = UUID.randomUUID(),
+                    projectID = UUID.fromString(project.projectID),
+                    expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
+                    role = Role.Worker,
+                )
+                invitationRepository.insertInvitationCode(invitation)
+            }
+            val invitation = Invitation(
+                inviterPhone = invitedUser.phone,
+                inviteCode = UUID.randomUUID(),
+                projectID = UUID.fromString(project.projectID),
+                expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
+                role = Role.Worker,
+            )
+            //when
+            val insertedInvitation = invitationRepository.insertInvitationCode(invitation)
+            //then
+            assertNotNull(insertedInvitation.exceptionOrNull())
+        }
     }
 
     @Test
     fun `should delete existing invitation`() = runTest {
-        val invitation = Invitation(
-            inviterPhone = invitedUser.phone,
-            inviteCode = UUID.randomUUID(),
-            projectID = UUID.fromString(project.projectID),
-            expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
-            role = Role.Worker,
-        )
-        val insertedInvitationCode = invitationRepository.insertInvitationCode(invitation).getOrNull()!!.inviteCode
-        //check invitation inserted
-        assertNotNull(invitationRepository.getInvitation(insertedInvitationCode))
+        suspendTransaction {
+            //given
+            val invitation = Invitation(
+                inviterPhone = invitedUser.phone,
+                inviteCode = UUID.randomUUID(),
+                projectID = UUID.fromString(project.projectID),
+                expireAt = Clock.System.now().toEpochMilliseconds() + 1000*60*60*24,
+                role = Role.Worker,
+            )
+            val insertedInvitationCode = invitationRepository.insertInvitationCode(invitation).getOrNull()!!.inviteCode
+            //check invitation inserted
+            assertNotNull(invitationRepository.getInvitation(insertedInvitationCode))
 
-        invitationRepository.deleteInvitationCode(invitation)
-        //check invitation deleted
-        assertNull(invitationRepository.getInvitation(insertedInvitationCode))
+            //when
+            invitationRepository.deleteInvitationCode(invitation)
+            //then
+            assertNull(invitationRepository.getInvitation(insertedInvitationCode))
+        }
     }
-
 }
