@@ -1,6 +1,6 @@
 package com.mapprjct.model.dto
 
-import com.mapprjct.exceptions.UserValidationException
+import com.mapprjct.exceptions.user.UserValidationException
 import kotlinx.serialization.Serializable
 
 @Serializable

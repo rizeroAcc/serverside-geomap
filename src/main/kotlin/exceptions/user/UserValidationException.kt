@@ -1,4 +1,6 @@
-package com.mapprjct.exceptions
+package com.mapprjct.exceptions.user
+
+import com.mapprjct.exceptions.BaseAppException
 
 sealed class UserValidationException : BaseAppException() {
     class InvalidPhoneFormat() : UserValidationException() {

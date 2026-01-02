@@ -26,11 +26,15 @@ fun Application.configureAuthenticationController() {
     routing{
         post("/signin") {
             val request = call.receive<SignInRequest>()
-            if (!userService.validateCredentials(request.toUserCredentialsDTO())){
+            val credentialsValid = userService.validateCredentials(request.toUserCredentialsDTO()).getOrElse {
+                call.respond(HttpStatusCode.InternalServerError, "Database unavailable")
+                return@post
+            }
+            if (!credentialsValid){
                 call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
             //User never be null if credentials correct
-            val user = userService.getUser(request.phone)!!
+            val user = userService.getUser(request.phone).getOrNull()!!
             (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone)
             val session = APISession(
                 phone = user.phone ,

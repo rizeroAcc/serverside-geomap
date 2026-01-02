@@ -5,6 +5,7 @@ import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.model.dto.User
 import com.mapprjct.utils.replaceRussiaCountryCode
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -70,12 +71,14 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
                     it[UserTable.username] = user.username
                     it[UserTable.avatar] = user.avatarPath
                 }
-            ).singleOrNull()?.let{
-                User(
-                    phone = it[UserTable.phone],
-                    username = it[UserTable.username],
-                    avatarPath = it[UserTable.avatar]
-                )
-            }
+            ).singleOrNull()?.toUser()
     }
+}
+
+private fun ResultRow.toUser(): User {
+    return User(
+        phone = this[UserTable.phone],
+        username = this[UserTable.username],
+        avatarPath = this[UserTable.avatar]
+    )
 }

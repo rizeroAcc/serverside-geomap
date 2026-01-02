@@ -2,6 +2,7 @@ package com.mapprjct.controller
 
 import com.mapprjct.database.storage.PostgresSessionStorage
 import com.mapprjct.model.APISession
+import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
 import com.mapprjct.model.request.ChangePasswordRequest
@@ -47,6 +48,10 @@ fun Application.configureProfileController() {
                 }
                 post("/avatar"){
                     val session = call.principal<APISession>()!!
+                    val user = userService.getUser(session.phone).getOrElse {
+                        call.respond(HttpStatusCode.InternalServerError, "Database unavailable")
+                        return@post
+                    }!!
                     try {
                         val multipart = call.receiveMultipart()
                         var avatarFileName: String? = null
@@ -63,7 +68,7 @@ fun Application.configureProfileController() {
                                     val fileName = "${session.phone}_avatar.$fileExtension"
                                     val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
 
-                                    val oldAvatarPath = userService.getUser(session.phone)?.avatarPath
+                                    val oldAvatarPath = user.avatarPath
                                     removeOldFile(uploadDir,oldAvatarPath)
 
                                     // Create new file
@@ -73,10 +78,7 @@ fun Application.configureProfileController() {
 
                                     // Обновляем в базе данных
                                     avatarFileName = fileName
-                                    userService.updateUser(
-                                        user = userService.getUser(session.phone)!!
-                                            .copy(avatarPath = avatarFileName),
-                                    )
+                                    userService.updateUser(user = user.copy(avatarPath = avatarFileName))
                                 }
                                 else -> {}
                             }
@@ -159,13 +161,20 @@ fun Application.configureProfileController() {
                 patch("/"){
                     val session = call.principal<APISession>()!!
                     val request = call.receive<ChangeUserInfoRequest>()
-                    var newUserInfo = userService.getUser(session.phone)!!
+                    var newUserInfo = userService.getUser(session.phone).getOrElse{
+                        call.respond(HttpStatusCode.InternalServerError, "Database unavailable")
+                        return@patch
+                    }
+                    if (newUserInfo == null) {
+                        call.respond(HttpStatusCode.NoContent, "User not found")
+                        return@patch
+                    }
                     if (request.username != null){
                         newUserInfo = newUserInfo.copy(username = request.username)
                     }
                     userService.updateUser(newUserInfo).fold(
                         onSuccess = { result->
-                            call.respond(HttpStatusCode.Accepted,result)
+                            call.respond(status = HttpStatusCode.Accepted, message = result!!)
                         },
                         onFailure = {
                             call.respond(HttpStatusCode.InternalServerError,it.message!!)
