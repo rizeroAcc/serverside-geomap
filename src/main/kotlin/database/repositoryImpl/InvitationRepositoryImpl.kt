@@ -15,6 +15,10 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import java.util.UUID
 
 class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
+
+    /**
+     * @return [IllegalStateException] if user already have 5 invitations
+     * */
     override suspend fun insertInvitationCode(
         invitation : Invitation
     ): Result<Invitation> {

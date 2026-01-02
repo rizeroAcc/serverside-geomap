@@ -10,6 +10,7 @@ import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.storage.PostgresSessionStorage
+import com.mapprjct.service.InvitationService
 import com.mapprjct.service.ProjectService
 import com.mapprjct.service.UserService
 import io.ktor.server.application.*
@@ -39,7 +40,8 @@ fun Application.configureKoin(startMode: ApplicationStartMode) {
                 single<SessionStorage> { PostgresSessionStorage(get()) }
 
                 single<UserService> { UserService(get(), get<Database>()) }
-                single<ProjectService> { ProjectService(get(),get()) }
+                single<ProjectService> { ProjectService(get(),get(), get()) }
+                single<InvitationService> { InvitationService(get(), get()) }
 
                 single<UserRepository> { UserRepositoryImpl(get()) }
                 single<SessionRepository> { SessionRepositoryImpl(get()) }

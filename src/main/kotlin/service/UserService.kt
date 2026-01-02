@@ -64,6 +64,8 @@ class UserService(
         }
     }
     /**
+     * Update user info **without phone**
+     *
      * @return User - if update success
      *
      *  null - if updating error occured
@@ -79,6 +81,11 @@ class UserService(
     }
     /**
      * @return [UserCredentials] - if update success
+     *
+     * [UserDMLExceptions.UserNotFoundException] - if user not found
+     *
+     * [IllegalArgumentException] - if old password wrong
+     *
      *  [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
      * */
     suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : String) : Result<UserCredentials>{
@@ -89,7 +96,7 @@ class UserService(
                         phone = oldCredentials.phone,
                     )
                 if (userCredentials.password != oldCredentials.password) {
-                    throw IllegalArgumentException("Incorrect password")
+                    throw IllegalArgumentException("Incorrect old password")
                 }
                 userRepository.updateUserPassword(
                     userPhone = oldCredentials.phone,

@@ -8,6 +8,7 @@ import com.mapprjct.model.request.InviteUserRequest
 import com.mapprjct.model.request.JoinToProjectRequest
 import com.mapprjct.model.response.CreateInvitationResponse
 import com.mapprjct.model.response.GetAllUserProjectsResponse
+import com.mapprjct.service.InvitationService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
@@ -24,6 +25,7 @@ import org.koin.ktor.ext.inject
 fun Application.configureProjectsController() {
     val projectDAOImpl : ProjectRepositoryImpl by inject()
     val projectService: ProjectService by inject()
+    val invitationService: InvitationService by inject()
     routing() {
         authenticate("auth-session") {
             route("/projects") {
@@ -63,7 +65,7 @@ fun Application.configureProjectsController() {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
                     val request = call.receive<InviteUserRequest>()
-                    val invitation = projectService.createInvitation(
+                    val invitation = invitationService.createInvitation(
                         inviterPhone = userPhone,
                         projectID = request.projectID,
                         role = request.role
