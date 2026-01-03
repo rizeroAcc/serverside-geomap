@@ -190,7 +190,7 @@ class ProjectServiceTest {
     }
 
     @Test
-    fun `should add user to project by invitation`() = runTest {
+    fun `should add user to project by invitation and delete invitation`() = runTest {
         suspendTransaction {
             //given
             val (owner, invitedUser, project) = setupUsersAndProject()
@@ -204,6 +204,8 @@ class ProjectServiceTest {
             val invitedUserProjects = projectService.getAllUserProjects(invitedUser.phone).getOrThrow()
             assertThat(invitedUserProjects[0].project.projectID)
                 .isEqualTo(project.projectID)
+            assertThat(invitationRepository.getInvitation(invitation.inviteCode))
+                .isNull()
         }
     }
     @Test

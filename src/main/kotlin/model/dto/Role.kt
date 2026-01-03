@@ -14,6 +14,9 @@ enum class Role {
     }
 }
 
+/**
+ * @throws IllegalArgumentException - if role code incorrect
+ * */
 fun Short.asRole(): Role {
     return when (this) {
         1.toShort() -> Role.Owner

@@ -21,7 +21,6 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -177,7 +176,7 @@ class InvitationRepositoryTest {
             assertNotNull(invitationRepository.getInvitation(insertedInvitationCode))
 
             //when
-            invitationRepository.deleteInvitationCode(invitation)
+            invitationRepository.deleteInvitation(invitation.inviteCode)
             //then
             assertNull(invitationRepository.getInvitation(insertedInvitationCode))
         }

@@ -8,16 +8,13 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insertIgnore
-import org.jetbrains.exposed.v1.jdbc.insertReturning
 import java.util.UUID
 
 class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
 
     /**
-     * @return [IllegalStateException] if user already have 5 invitations
+     * @throws IllegalStateException if user already have 5 invitations
      * */
     override suspend fun insertInvitationCode(
         invitation : Invitation
@@ -55,9 +52,9 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
             }
     }
 
-    override suspend fun deleteInvitationCode(invitation: Invitation) : Int {
+    override suspend fun deleteInvitation(inviteCode: UUID) : Int {
         return InviteCodeTable.deleteWhere {
-                InviteCodeTable.inviteCode eq invitation.inviteCode
+                InviteCodeTable.inviteCode eq inviteCode
             }
     }
 }

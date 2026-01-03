@@ -9,13 +9,8 @@ import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectWithRole
-import com.mapprjct.model.dto.Role
-import com.mapprjct.model.dto.asRole
-import com.mapprjct.model.Invitation
 import java.util.UUID
 import kotlin.Result.Companion.success
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
 
 class ProjectService(
     val userRepository: UserRepository,
@@ -51,11 +46,14 @@ class ProjectService(
     /**
      * @throws InvitationDMLExceptions.InvitationNotFoundException - if invitation not found
      * @throws ProjectValidationException.UserAlreadyProjectMember - if user already project member
+     * @throws IllegalArgumentException - if invitation code invalid
      * */
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{
         return runCatching {
+            val code = UUID.fromString(invitationCode)
+
             val invitation = invitationRepository.getInvitation(
-                code = UUID.fromString(invitationCode)
+                code = code
             ) ?: throw InvitationDMLExceptions.InvitationNotFoundException(invitationCode)
 
             if (userPhone == invitation.inviterPhone){
@@ -77,6 +75,7 @@ class ProjectService(
 
             projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
 
+            invitationRepository.deleteInvitation(invitation.inviteCode)
             return success(project)
         }
     }
