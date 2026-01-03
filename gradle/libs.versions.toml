@@ -11,6 +11,7 @@ testcontainers = "1.21.4"
 
 kotlinJUnit = "2.3.0"
 kotlinCoroutinesTest = "1.10.2"
+assertJ = "3.27.6"
 [libraries]
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koin-logger-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
@@ -45,6 +46,8 @@ swagger-core = {module = "io.swagger.core.v3:swagger-core", version.ref = "swagg
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers"}
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers"}
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version = "5.11.3" }
+
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertJ"}
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
