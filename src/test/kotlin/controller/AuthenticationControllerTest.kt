@@ -22,7 +22,6 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
-import io.ktor.http.headers
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.sessions.SessionStorage
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -59,6 +58,7 @@ class AuthenticationControllerTest{
                 )
             )
         }
+        block()
     }
 
     companion object {
@@ -231,15 +231,15 @@ class AuthenticationControllerTest{
 
         val response = client.post("/logout") {
             contentType(ContentType.Application.Json)
-            headers.append("Authorization", "token")
+            headers.append("Authorization", token)
         }
         assertThat(response.status)
             .isEqualTo(HttpStatusCode.Accepted)
         //check session cleared
-        val readedToken = runCatching {
+        val readToken = runCatching {
             sessionStorage.read(token)
         }
-        assertThat(readedToken.exceptionOrNull())
+        assertThat(readToken.exceptionOrNull())
             .isInstanceOf(NoSuchElementException::class.java)
     }
     @Test
@@ -248,7 +248,7 @@ class AuthenticationControllerTest{
             headers.append("Authorization", "token")
         }
         assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Unauthorized)
+            .isEqualTo(HttpStatusCode.NotFound)
     }
     @Test
     fun `should answer 204 if session invalid`() = testKtorApp {

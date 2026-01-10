@@ -67,7 +67,7 @@ class UserRepositoryTest{
         val user = User(
             phone = "89036559989",
             username = "test",
-            avatarPath = null
+            avatarFilename = null
         )
 
         suspendTransaction(database) {
@@ -77,7 +77,7 @@ class UserRepositoryTest{
             UserTable.selectAll().single().let {
                 assertEquals(user.username, it[UserTable.username])
                 assertEquals(user.phone, it[UserTable.phone])
-                assertEquals(user.avatarPath, it[UserTable.avatar])
+                assertEquals(user.avatarFilename, it[UserTable.avatar])
                 assertEquals("test", it[UserTable.passwordHash])
             }
         }
@@ -89,7 +89,7 @@ class UserRepositoryTest{
         val user = User(
             phone = "+79036559989",
             username = "test",
-            avatarPath = null
+            avatarFilename = null
         )
 
         suspendTransaction(database) {
@@ -110,12 +110,12 @@ class UserRepositoryTest{
         val userWithInvalidPhone = User(
             phone = "9036559989",
             username = "test",
-            avatarPath = null
+            avatarFilename = null
         )
         val userWithEmptyUsername = User(
             phone = "+79036559989",
             username = "",
-            avatarPath = null
+            avatarFilename = null
         )
 
         suspendTransaction(database) {
@@ -138,7 +138,7 @@ class UserRepositoryTest{
     @Test
     fun `should receive existing user`() = runTest {
         //given
-        val userToInsert = User(phone = "89036559989", username = "test", avatarPath = null)
+        val userToInsert = User(phone = "89036559989", username = "test", avatarFilename = null)
         suspendTransaction(database) {
             //when
             userRepository.insert(userToInsert, "test")
@@ -163,8 +163,8 @@ class UserRepositoryTest{
     @Test
     fun `should update user fields except phone and password`() = runTest {
         //given
-        val user = User(phone = "89036559989", username = "test", avatarPath = null)
-        val updatedUserInfo = user.copy(username = "newTest", avatarPath = "testPath")
+        val user = User(phone = "89036559989", username = "test", avatarFilename = null)
+        val updatedUserInfo = user.copy(username = "newTest", avatarFilename = "testPath")
         suspendTransaction(database) {
             userRepository.insert(user, "testPassword")
             //when
@@ -180,7 +180,7 @@ class UserRepositoryTest{
         val user = User(
             phone = "89036559989",
             username = "testName",
-            avatarPath = null
+            avatarFilename = null
         )
         val expectedCredentials = UserCredentials(phone = "89036559989", password = "testPassword")
         suspendTransaction(database) {
@@ -214,7 +214,7 @@ class UserRepositoryTest{
         val user = User(
             phone = phone,
             username = username,
-            avatarPath = null
+            avatarFilename = null
         )
         val oldCredentials = UserCredentials(phone = phone, password = password)
         suspendTransaction(database) {

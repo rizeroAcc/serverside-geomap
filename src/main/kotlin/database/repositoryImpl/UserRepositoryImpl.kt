@@ -20,7 +20,7 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
             it[phone] = user.phone.replaceRussiaCountryCode()
             it[UserTable.username] = user.username
             it[passwordHash] = password
-            it[avatar] = user.avatarPath
+            it[avatar] = user.avatarFilename
         }
     }
 
@@ -32,7 +32,7 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
                 User(
                     phone = it[UserTable.phone],
                     username = it[UserTable.username],
-                    avatarPath = it[UserTable.avatar],
+                    avatarFilename = it[UserTable.avatar],
             )
         }
     }
@@ -69,7 +69,7 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
                 body = {
                     //in future can be more fields
                     it[UserTable.username] = user.username
-                    it[UserTable.avatar] = user.avatarPath
+                    it[UserTable.avatar] = user.avatarFilename
                 }
             ).singleOrNull()?.toUser()
     }
@@ -79,6 +79,6 @@ private fun ResultRow.toUser(): User {
     return User(
         phone = this[UserTable.phone],
         username = this[UserTable.username],
-        avatarPath = this[UserTable.avatar]
+        avatarFilename = this[UserTable.avatar]
     )
 }

@@ -20,7 +20,6 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -50,12 +49,12 @@ class ProjectRepositoryTest {
     private val testUser1 = User(
         phone = "89036559989",
         username = "owner",
-        avatarPath = null
+        avatarFilename = null
     )
     private val testUser2 = User(
         phone = "89038518685",
         username = "admin",
-        avatarPath = null
+        avatarFilename = null
     )
 
     @BeforeAll

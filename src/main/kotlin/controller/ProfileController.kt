@@ -9,6 +9,7 @@ import com.mapprjct.model.request.ChangePasswordRequest
 import com.mapprjct.model.request.ChangeUserInfoRequest
 import com.mapprjct.model.response.AvatarUpdateResponse
 import com.mapprjct.model.response.ChangePasswordResponse
+import com.mapprjct.model.response.error.ErrorResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -20,6 +21,8 @@ import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
@@ -31,6 +34,7 @@ import io.ktor.server.sessions.sessions
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.copyAndClose
 import kotlinx.datetime.Clock
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.koin.ktor.ext.inject
 import java.io.File
 
@@ -40,69 +44,8 @@ fun Application.configureProfileController() {
     routing {
         authenticate("auth-session") {
             route("/user"){
-                get("/"){
-                    val session = call.principal<APISession>()!!
-                    //if session valid user never be null
-                    val user = userService.getUser(session.phone)!!
-                    call.respond(status = HttpStatusCode.OK,user)
-                }
-                post("/avatar"){
-                    val session = call.principal<APISession>()!!
-                    val user = userService.getUser(session.phone).getOrElse {
-                        call.respond(HttpStatusCode.InternalServerError, "Database unavailable")
-                        return@post
-                    }!!
-                    try {
-                        val multipart = call.receiveMultipart()
-                        var avatarFileName: String? = null
-                        multipart.forEachPart { part ->
-                            when (part) {
-                                is PartData.FileItem -> {
-                                    val originalFileName = part.originalFileName as String
-                                    val fileExtension = originalFileName.substringAfterLast('.').lowercase()
-                                    if (!fileIsImage(originalFileName)) {
-                                        throw IllegalArgumentException("Allowed formats: jpg, png")
-                                    }
-
-                                    // Генерация имени файла
-                                    val fileName = "${session.phone}_avatar.$fileExtension"
-                                    val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
-
-                                    val oldAvatarPath = user.avatarPath
-                                    removeOldFile(uploadDir,oldAvatarPath)
-
-                                    // Create new file
-                                    val targetFile = File(uploadDir, fileName)
-                                    //Write image
-                                    part.provider().copyAndClose((targetFile.writeChannel()))
-
-                                    // Обновляем в базе данных
-                                    avatarFileName = fileName
-                                    userService.updateUser(user = user.copy(avatarPath = avatarFileName))
-                                }
-                                else -> {}
-                            }
-                            part.dispose()
-                        }
-
-                        if (avatarFileName == null) {
-                            call.respond(HttpStatusCode.BadRequest, "No file provided")
-                            return@post
-                        }
-
-                        call.respond(
-                            HttpStatusCode.Accepted,
-                            AvatarUpdateResponse(
-                                avatarUrl = "/api/avatars/$avatarFileName",
-                            )
-                        )
-
-                    } catch (e: IllegalArgumentException) {
-                        call.respond(HttpStatusCode.BadRequest, e.message ?: "Invalid file")
-                    } catch (e: Exception) {
-                        call.respond(HttpStatusCode.InternalServerError, "Upload failed: ${e.message}")
-                    }
-                }
+                getUserInfo(userService)
+                updateUserAvatar(userService)
                 get("/avatar/{filename}") {
                     val filename = call.parameters["filename"] ?: return@get call.respond(
                         status = HttpStatusCode.BadRequest,
@@ -186,22 +129,52 @@ fun Application.configureProfileController() {
     }
 }
 
-fun fileIsImage(filename : String) : Boolean {
-    return filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
-}
-fun getOrCreateUploadDirectory(relatePath : String) : File {
-    val directory = File(relatePath)
-    if (!directory.exists()) {
-        directory.mkdirs()
-    }
-    return directory
-}
+private fun Route.updateUserAvatar(userService: UserService){
+    post("/avatar"){
+        val session = call.principal<APISession>()!!
+        val user = userService.getUser(session.phone).getOrElse { error->
+            call.respond(
+                status = HttpStatusCode.InternalServerError,
+                message = ErrorResponse.loggedDatabaseException(error as ExposedSQLException)
+            )
+            return@post
+        }!!
 
-fun removeOldFile(directory : File, oldFilename : String?) {
-    oldFilename?.let { oldFileName ->
-        val oldFile = File(directory, oldFileName)
-        if (oldFile.exists()) {
-            oldFile.delete()
+        try {
+            val multipart = call.receiveMultipart()
+            userService.updateUserAvatar(user,multipart).fold(
+                onSuccess = { user->
+                    call.respond(
+                        HttpStatusCode.Accepted,
+                        AvatarUpdateResponse(
+                            user = user
+                        )
+                    )
+                },
+                onFailure = {
+                    call.respond(HttpStatusCode.BadRequest,it.message!!)
+                }
+            )
+        } catch (e: IllegalArgumentException) {
+            call.respond(HttpStatusCode.BadRequest, e.message ?: "Invalid file")
+        } catch (e: Exception) {
+            call.respond(HttpStatusCode.InternalServerError, "Upload failed: ${e.message}")
         }
     }
 }
+
+private fun Route.getUserInfo(userService: UserService){
+    get(){
+        val session = call.principal<APISession>()!!
+        //not null if session valid
+        val user = userService.getUser(session.phone).getOrElse { error->
+            call.respond(
+                status = HttpStatusCode.InternalServerError,
+                message = ErrorResponse.loggedDatabaseException(error as ExposedSQLException)
+            )
+            return@get
+        }!!
+        call.respond(status = HttpStatusCode.OK,user)
+    }
+}
+

@@ -54,8 +54,8 @@ class InvitationRepositoryTest {
     private lateinit var userRepository: UserRepository
     private lateinit var projectRepository: ProjectRepository
 
-    val projectOwnerUser = User(phone = "89036559989", username = "test_user", avatarPath = null)
-    val invitedUser = User(phone = "89038518685", username = "test_user2", avatarPath = null)
+    val projectOwnerUser = User(phone = "89036559989", username = "test_user", avatarFilename = null)
+    val invitedUser = User(phone = "89038518685", username = "test_user2", avatarFilename = null)
     lateinit var project: Project
     @BeforeAll
     fun initialize() {

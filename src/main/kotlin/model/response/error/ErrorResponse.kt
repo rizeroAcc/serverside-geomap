@@ -1,11 +1,13 @@
 package com.mapprjct.model.response.error
 
 import com.mapprjct.exceptions.BaseAppException
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
+@Serializable
 data class ErrorResponse(
     val message : String,
     val detailedMessage: String,

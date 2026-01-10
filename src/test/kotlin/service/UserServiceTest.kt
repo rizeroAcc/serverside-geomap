@@ -1,32 +1,24 @@
 package com.mapprjct.service
 
-import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
-import com.mapprjct.database.repository.InvitationRepository
-import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.exceptions.BaseAppException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.dto.UserCredentials
-import com.mapprjct.repository.InvitationRepositoryTest
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertInstanceOf
 import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertNull
-import org.junit.jupiter.api.assertThrows
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -202,7 +194,7 @@ class UserServiceTest {
         val username = "test"
         suspendTransaction {
             val createdUser = userService.createUser(credentials,username).getOrThrow()
-            val updatedUser = createdUser.copy(username = "new_test", avatarPath = "path")
+            val updatedUser = createdUser.copy(username = "new_test", avatarFilename = "path")
             //when
             val result = userService.updateUser(updatedUser).getOrThrow()
             //then

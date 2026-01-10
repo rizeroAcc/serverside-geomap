@@ -37,8 +37,6 @@ fun Application.configureAuthenticationController() {
         logOutRoute(sessionStorage)
         registrationRoute(userService)
     }
-
-
 }
 
 private fun Routing.signInRoute(
@@ -87,9 +85,11 @@ private fun Routing.logOutRoute(sessionStorage : SessionStorage) {
                 sessionStorage.read(it)
             }catch (_ : NoSuchElementException){
                 call.respond(HttpStatusCode.NotFound,"Invalid session")
+                return@post
             }
             sessionStorage.invalidate(it)
             call.respond(HttpStatusCode.Accepted,"Logged out")
+            return@post
         }
         call.respond(HttpStatusCode.NoContent,"No token found")
     }
