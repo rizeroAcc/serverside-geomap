@@ -1,34 +1,64 @@
 package com.mapprjct.service
 
+import com.mapprjct.AppConfig
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
+import com.mapprjct.database.storage.AvatarStorage
+import com.mapprjct.database.storage.impl.FileAvatarStorage
 import com.mapprjct.database.tables.UserTable
+import com.mapprjct.di.repositoryModule
+import com.mapprjct.di.serviceModule
+import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
+import com.mapprjct.initKoin
 import com.mapprjct.model.dto.UserCredentials
+import io.ktor.client.request.forms.ChannelProvider
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.cio.MultipartEvent
+import io.ktor.http.content.MultiPartData
+import io.ktor.http.content.PartData
+import io.ktor.http.headers
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.utils.io.toByteArray
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertNotNull
 import org.junit.jupiter.api.assertNull
+import org.junit.jupiter.api.extension.RegisterExtension
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import org.koin.test.KoinTest
+import org.koin.test.inject
+import org.koin.test.junit5.KoinTestExtension
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Testcontainers
-class UserServiceTest {
+class UserServiceTest : KoinTest {
     companion object {
         @Container
         val postgreSQLContainer = PostgreSQLContainer("postgres:latest")
@@ -39,10 +69,8 @@ class UserServiceTest {
     }
 
     private lateinit var database: Database
-
-    private lateinit var userRepository: UserRepository
-    private lateinit var userService: UserService
-
+    private val userService: UserService by inject()
+    private val avatarStorage: AvatarStorage by inject()
     @BeforeAll
     fun initialize() {
         database = Database.connect(
@@ -51,17 +79,32 @@ class UserServiceTest {
             user = postgreSQLContainer.username,
             password = postgreSQLContainer.password,
         )
-        userRepository = UserRepositoryImpl(database)
-        userService = UserService(database = database, userRepository = userRepository)
+        startKoin {
+            modules(
+                module {
+                    single { database }
+                    single { AppConfig.Test }
+                },
+                storageModule,
+                repositoryModule,
+                serviceModule
+            )
+        }
+    }
+
+    @AfterAll
+    fun shutdown() {
+        stopKoin()
     }
 
     @BeforeEach
-    fun setUp() = runBlocking {
-
+    fun setUp() = runBlocking<Unit> {
         suspendTransaction(database) {
             SchemaUtils.drop(UserTable)
             SchemaUtils.create(UserTable)
         }
+        val testResDir = File("test")
+        testResDir.deleteRecursively()
     }
 
     @Test
@@ -255,5 +298,27 @@ class UserServiceTest {
             //then
             assertTrue { result.exceptionOrNull()!! is UserDMLExceptions.UserNotFoundException }
         }
+    }
+
+    @Test
+    fun `should update user avatar`() = runTest {
+        val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
+        val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
+
+
+
+        val updatedUser = userService.updateUserAvatar(
+            user = user,
+            multipart = MultiPartData {
+
+            }
+        )
+        assertThat(updatedUser.getOrNull())
+            .isNotNull()
+
+        val providedFileBytes = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel().toByteArray()
+        val savedAvatarFileBytes = File(avatarStorage.getUploadDirectory(),updatedUser.getOrNull()!!.avatarFilename!!).readBytes()
+        assertThat(savedAvatarFileBytes)
+            .isEqualTo(providedFileBytes)
     }
 }

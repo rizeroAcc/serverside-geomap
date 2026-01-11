@@ -13,3 +13,6 @@ jwt:
   issuer: "map.server"
   audience: "jwt-audience"
   realm: "app"
+resource:
+  avatar:
+    path: "api/uploads/avatars/"

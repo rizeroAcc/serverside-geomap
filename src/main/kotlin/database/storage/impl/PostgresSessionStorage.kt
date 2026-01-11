@@ -1,4 +1,4 @@
-package com.mapprjct.database.storage
+package com.mapprjct.database.storage.impl
 
 import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.model.APISession

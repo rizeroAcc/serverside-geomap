@@ -2,6 +2,7 @@
 
 package com.mapprjct.service
 
+import com.mapprjct.AppConfig
 import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
@@ -12,9 +13,13 @@ import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
+import com.mapprjct.di.repositoryModule
+import com.mapprjct.di.serviceModule
+import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.invitation.InvitationDMLExceptions
 import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
+import com.mapprjct.initKoin
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.Role
@@ -27,11 +32,20 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.RegisterExtension
+import org.koin.core.Koin
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import org.koin.test.KoinTest
+import org.koin.test.inject
+import org.koin.test.junit5.KoinTestExtension
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -42,7 +56,7 @@ import kotlin.time.ExperimentalTime
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Testcontainers
-class ProjectServiceTest {
+class ProjectServiceTest : KoinTest {
     companion object {
         @Container
         val postgreSQLContainer = PostgreSQLContainer("postgres:latest")
@@ -53,10 +67,9 @@ class ProjectServiceTest {
     }
 
     private lateinit var database: Database
-    private lateinit var userRepository: UserRepository
-    private lateinit var projectRepository: ProjectRepository
-    private lateinit var invitationRepository: InvitationRepository
-    private lateinit var projectService: ProjectService
+    private val userRepository: UserRepository by inject()
+    private val invitationRepository: InvitationRepository by inject()
+    private val projectService: ProjectService by inject()
 
     private fun createUser(
         phone : String,
@@ -80,14 +93,22 @@ class ProjectServiceTest {
             user = postgreSQLContainer.username,
             password = postgreSQLContainer.password,
         )
-        userRepository = UserRepositoryImpl(database)
-        projectRepository = ProjectRepositoryImpl(database)
-        invitationRepository = InvitationRepositoryImpl(database)
-        projectService = ProjectService(
-            userRepository = userRepository,
-            projectRepository = projectRepository,
-            invitationRepository = invitationRepository
-        )
+        startKoin {
+            modules(
+                module {
+                    single { database }
+                    single { AppConfig.Test }
+                },
+                storageModule,
+                repositoryModule,
+                serviceModule
+            )
+        }
+    }
+
+    @AfterAll
+    fun shutdown() {
+        stopKoin()
     }
 
     @BeforeEach

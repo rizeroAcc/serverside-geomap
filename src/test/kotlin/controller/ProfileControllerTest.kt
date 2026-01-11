@@ -1,13 +1,12 @@
 package com.mapprjct.controller
 
+import com.mapprjct.AppConfig
 import com.mapprjct.ApplicationStartMode
-import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.RegistrationRequest
 import com.mapprjct.model.request.SignInRequest
 import com.mapprjct.model.response.AvatarUpdateResponse
 import com.mapprjct.module
-import com.mapprjct.service.UserService
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.ChannelProvider
@@ -22,15 +21,20 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
 import io.ktor.utils.io.toByteArray
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.koin.core.context.GlobalContext.stopKoin
+import org.koin.ktor.ext.getKoin
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -42,6 +46,11 @@ class ProfileControllerTest {
     fun testKtorApp(
         block: suspend ApplicationTestBuilder.() -> Unit
     ) = testApplication {
+
+        environment {
+            config = ApplicationConfig("application-test.yaml")
+        }
+
         client = client.config {
             install(ContentNegotiation) { json() }
         }
@@ -68,20 +77,25 @@ class ProfileControllerTest {
     }
 
     private lateinit var database : Database
-    private lateinit var userService : UserService
 
     @BeforeAll
     fun initialize() {
         database = Database.connect(
-            url = ProfileControllerTest.postgreSQLContainer.jdbcUrl,
+            url = postgreSQLContainer.jdbcUrl,
             driver = "org.postgresql.Driver",
-            user = ProfileControllerTest.postgreSQLContainer.username,
-            password = ProfileControllerTest.postgreSQLContainer.password
+            user = postgreSQLContainer.username,
+            password = postgreSQLContainer.password
         )
-        userService = UserService(
-            userRepository = UserRepositoryImpl(database),
-            database = database
-        )
+    }
+    @AfterAll
+    fun shutdown() {
+        stopKoin()
+    }
+
+    @BeforeEach
+    fun setUp(){
+        val dir = File("test")
+        dir.deleteRecursively()
     }
 
     @Test
@@ -116,7 +130,6 @@ class ProfileControllerTest {
             .isEqualTo(HttpStatusCode.Unauthorized)
 
     }
-
     @Test
     fun `should update user avatar`() = testKtorApp {
         val userForRegistration = User("89036559989","kirill")
@@ -160,7 +173,8 @@ class ProfileControllerTest {
             .isEqualTo(HttpStatusCode.Accepted)
         val filename = response.body<AvatarUpdateResponse>().user.avatarFilename!!
         val providedFileBytes = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel().toByteArray()
-        val savedFileBytes = File(filename).readBytes()
+        val savedFile = File(this.application.getKoin().get<AppConfig>().avatarResourcePath + filename)
+        val savedFileBytes = savedFile.readBytes()
         assertThat(savedFileBytes)
             .isEqualTo(providedFileBytes)
     }

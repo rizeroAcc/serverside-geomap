@@ -33,5 +33,15 @@ data class ErrorResponse(
                 errorID = UUID.randomUUID().toString()
             )
         }
+
+        @OptIn(ExperimentalTime::class)
+        fun fromThrowable(throwable : Throwable, whatsHappened : String) : ErrorResponse{
+            return ErrorResponse(
+                message = whatsHappened,
+                detailedMessage = whatsHappened,
+                timestamp = Clock.System.now().toEpochMilliseconds(),
+                errorID = UUID.randomUUID().toString()
+            )
+        }
     }
 }

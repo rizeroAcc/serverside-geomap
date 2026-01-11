@@ -1,15 +1,18 @@
 package com.mapprjct.service
 
-import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
+import com.mapprjct.AppConfig
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.UserRepository
-import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
-import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
+import com.mapprjct.di.repositoryModule
+import com.mapprjct.di.serviceModule
+import com.mapprjct.di.storageModule
+import com.mapprjct.exceptions.invitation.InvitationValidationException
+import com.mapprjct.exceptions.project.ProjectDMLException
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Role
 import com.mapprjct.model.dto.User
@@ -22,17 +25,28 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.RegisterExtension
+import org.koin.core.component.inject
+import org.koin.core.context.GlobalContext
+import org.koin.core.context.startKoin
+import org.koin.core.context.stopKoin
+import org.koin.dsl.module
+import org.koin.logger.slf4jLogger
+import org.koin.test.KoinTest
+import org.koin.test.junit5.KoinTestExtension
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.util.UUID
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Testcontainers
-class InvitationServiceTest {
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class InvitationServiceTest : KoinTest {
     companion object {
         @Container
         val postgreSQLContainer = PostgreSQLContainer("postgres:latest")
@@ -43,12 +57,9 @@ class InvitationServiceTest {
     }
 
     private lateinit var database: Database
-
-    private lateinit var userRepository: UserRepository
-    private lateinit var projectRepository: ProjectRepository
-    private lateinit var invitationRepository: InvitationRepository
-
-    private lateinit var invitationService: InvitationService
+    private val userRepository : UserRepository by inject()
+    private val projectRepository: ProjectRepository by inject()
+    private val invitationService: InvitationService by inject()
 
     private fun createUser(
         phone : String,
@@ -72,13 +83,23 @@ class InvitationServiceTest {
             user = postgreSQLContainer.username,
             password = postgreSQLContainer.password,
         )
-        userRepository = UserRepositoryImpl(database)
-        projectRepository = ProjectRepositoryImpl(database)
-        invitationRepository = InvitationRepositoryImpl(database)
-        invitationService = InvitationService(
-            projectRepository = projectRepository,
-            invitationRepository = invitationRepository
-        )
+        startKoin {
+            slf4jLogger()
+            modules(
+                module {
+                    single { database }
+                    single { AppConfig.Test }
+                       },
+                storageModule,
+                repositoryModule,
+                serviceModule
+            )
+        }
+    }
+
+    @AfterAll
+    fun shutdown() {
+        stopKoin()
     }
 
     @BeforeEach
@@ -88,6 +109,8 @@ class InvitationServiceTest {
             SchemaUtils.create(UserTable, ProjectTable, ProjectUsersTable, InviteCodeTable)
         }
     }
+
+
 
     @Test
     fun `should create invitation`() = runTest {
@@ -111,8 +134,88 @@ class InvitationServiceTest {
                 )
                 assertThat(insertedInvitation).isEqualTo(invitation)
             }
+
         }
     }
 
-    //todo bad scenario
+    @Test
+    fun `should return IllegalArgumentException if projectID invalid`() = runTest {
+        val invalidID = UUID.randomUUID().toString().replace("-", "")
+        val result = invitationService.createInvitation(
+            inviterPhone = "89036559989",
+            projectID = invalidID,
+            role = Role.Worker.toShort()
+        )
+        assertThat(result.exceptionOrNull())
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `should return IllegalArgumentException if role is Invalid`() = runTest {
+        suspendTransaction {
+            val user = createUser(phone ="89036559989", name ="test",password = "test")
+            val project = projectRepository.insertProject(user.phone,"test")
+            val invalidRoleCode = 5.toShort()
+            val result = invitationService.createInvitation(
+                inviterPhone = "89036559989",
+                projectID = project.projectID,
+                role = invalidRoleCode
+            )
+            assertThat(result.exceptionOrNull())
+                .isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
+
+    @Test
+    fun `should return InvitationValidationException if role is Owner`() = runTest {
+        suspendTransaction {
+            val user = createUser(phone ="89036559989", name ="test",password = "test")
+            val project = projectRepository.insertProject(user.phone,"test")
+
+            val result = invitationService.createInvitation(
+                inviterPhone = "89036559989",
+                projectID = project.projectID,
+                role = Role.Owner.toShort()
+            )
+            assertThat(result.exceptionOrNull())
+                .isInstanceOf(InvitationValidationException.InvalidUserRole::class.java)
+        }
+
+    }
+
+    @Test
+    fun `should return ProjectNotFoundException if project doesn't exists`() = runTest {
+        suspendTransaction {
+            val projectID = UUID.randomUUID().toString()
+            val result = invitationService.createInvitation(
+                inviterPhone = "89036559989",
+                projectID = projectID,
+                role = Role.Worker.toShort()
+            )
+            assertThat(result.exceptionOrNull())
+                .isInstanceOf(ProjectDMLException.ProjectNotFoundException::class.java)
+        }
+    }
+
+    @Test
+    fun `should return IllegalArgumentException if user have over 5 invitations`() = runTest {
+        suspendTransaction {
+            val user = createUser(phone ="89036559989", name ="test",password = "test")
+            val project = projectRepository.insertProject(user.phone,"test")
+            for (i in 1..5){
+                invitationService.createInvitation(
+                    inviterPhone = "89036559989",
+                    projectID = project.projectID,
+                    role = Role.Worker.toShort()
+                )
+            }
+            val result = invitationService.createInvitation(
+                inviterPhone = "89036559989",
+                projectID = project.projectID,
+                role = Role.Worker.toShort()
+            )
+            assertThat(result.exceptionOrNull())
+                .isInstanceOf(IllegalStateException::class.java)
+        }
+    }
 }

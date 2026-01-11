@@ -37,11 +37,13 @@ logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "lo
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml", version.ref = "ktor" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
 
+ktor-server-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor"}
+swagger-core = {module = "io.swagger.core.v3:swagger-core", version.ref = "swagger"}
+
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlinJUnit" }
 kotlin-test-coroutines = { module = "org.jetbrains:kotlinx-coroutines-test", version.ref = "kotlinCoroutinesTest"}
 
-ktor-server-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor"}
-swagger-core = {module = "io.swagger.core.v3:swagger-core", version.ref = "swagger"}
+koin-test-junit5 = { module = "io.insert-koin:koin-test-junit5", version.ref = "koin"}
 
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers"}
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers"}

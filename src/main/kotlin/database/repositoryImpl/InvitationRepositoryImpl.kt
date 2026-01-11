@@ -33,7 +33,7 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
             }
             Result.success(invitation)
         }else{
-            Result.failure(IllegalArgumentException("Attempt to register over five invitations"))
+            Result.failure(IllegalStateException("Attempt to register over five invitations"))
         }
     }
 

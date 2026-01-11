@@ -1,7 +1,9 @@
 package com.mapprjct.service
 
+import com.mapprjct.AppConfig
 import com.mapprjct.model.dto.User
 import com.mapprjct.database.repository.UserRepository
+import com.mapprjct.database.storage.AvatarStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.exceptions.user.UserValidationException
@@ -10,14 +12,20 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.copyAndClose
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.io.File
+import java.io.IOException
+import java.util.UUID
 import kotlin.Result.Companion.failure
 
 class UserService(
     val userRepository: UserRepository,
+    val avatarStorage: AvatarStorage,
     val database: Database,
+    val appConfig: AppConfig,
 ) {
 
     /**
@@ -111,61 +119,43 @@ class UserService(
             }
         }
     }
-    /***/
-    suspend fun updateUserAvatar(user: User, multipart: MultiPartData) : Result<User>{
+    /**
+     * @throws IllegalArgumentException - if filename is empty or file format invalid
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
+     * */
+    suspend fun updateUserAvatar(user: User, multipart: MultiPartData) : Result<User> = runCatching {
+        //todo createFileStorage not work in service
         var avatarFileName: String? = null
-
+        var updatedUser : User? = null
         multipart.forEachPart { part ->
             when (part) {
                 is PartData.FileItem -> {
-                    val originalFileName = part.originalFileName as String
-                    val fileExtension = originalFileName.substringAfterLast('.').lowercase()
-                    if (!fileIsImage(originalFileName)) {
+                    val receivedFileName = part.originalFileName
+                        ?: throw IllegalArgumentException("Empty file name")
+
+                    val fileExtension = receivedFileName.substringAfterLast('.').lowercase()
+                    if (!fileIsImage(receivedFileName)) {
                         throw IllegalArgumentException("Allowed formats: jpg, png")
                     }
 
-                    // Генерация имени файла
-                    val fileName = "${user.phone}.$fileExtension"
-                    val uploadDir = getOrCreateUploadDirectory("api/uploads/avatars")
+                    avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
+                        user = user,
+                        fileExtension = fileExtension,
+                        avatarByteProvider = part.provider
+                    ).getOrThrow()
 
-                    val oldAvatarPath = user.avatarFilename
-                    removeOldFile(uploadDir,oldAvatarPath)
-
-                    // Create new file
-                    val targetFile = File(uploadDir, fileName)
-                    //Write image
-                    part.provider().copyAndClose((targetFile.writeChannel()))
-
-                    // Обновляем в базе данных
-                    avatarFileName = fileName
-                    updateUser(user = user.copy(avatarFilename = avatarFileName))
+                    updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
                 }
                 else -> {}
             }
             part.dispose()
         }
-        avatarFileName ?: return failure<User>(IllegalArgumentException("avatar file name is null"))
 
-        return Result.success(user.copy(avatarFilename = "api/uploads/avatars/$avatarFileName"))
+        updatedUser!!
     }
 
     private fun fileIsImage(filename : String) : Boolean {
         return filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
     }
-    private fun getOrCreateUploadDirectory(relatePath : String) : File {
-        val directory = File(relatePath)
-        if (!directory.exists()) {
-            directory.mkdirs()
-        }
-        return directory
-    }
 
-    private fun removeOldFile(directory : File, oldFilename : String?) {
-        oldFilename?.let { oldFileName ->
-            val oldFile = File(directory, oldFileName)
-            if (oldFile.exists()) {
-                oldFile.delete()
-            }
-        }
-    }
 }

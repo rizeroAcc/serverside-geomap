@@ -45,6 +45,7 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.assertj.core)
+    testImplementation(libs.koin.test.junit5)
 
     testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
 

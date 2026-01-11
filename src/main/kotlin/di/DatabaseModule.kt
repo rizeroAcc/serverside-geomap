@@ -1,15 +1,17 @@
 package com.mapprjct.di
 
+import com.mapprjct.AppConfig
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.koin.dsl.module
 
 val databaseModule = module {
     single<Database> {
+        val appConfig = getKoin().get<AppConfig>()
         Database.connect(
-            url = getKoin().getProperty("postgres.url")!!,
+            url = appConfig.databaseURL,
             driver = "org.postgresql.Driver",
-            user = getKoin().getProperty("postgres.user")!!,
-            password = getKoin().getProperty("postgres.password")!!,
+            user = appConfig.databaseUsername,
+            password = appConfig.databasePassword,
         )
     }
 }

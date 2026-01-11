@@ -1,6 +1,6 @@
 package com.mapprjct.controller
 
-import com.mapprjct.database.storage.PostgresSessionStorage
+import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.model.APISession
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
@@ -17,6 +17,7 @@ import io.ktor.http.content.forEachPart
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
+import io.ktor.server.request.ContentTransformationException
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
@@ -142,6 +143,9 @@ private fun Route.updateUserAvatar(userService: UserService){
 
         try {
             val multipart = call.receiveMultipart()
+            multipart.forEachPart {
+
+            }
             userService.updateUserAvatar(user,multipart).fold(
                 onSuccess = { user->
                     call.respond(
@@ -155,10 +159,16 @@ private fun Route.updateUserAvatar(userService: UserService){
                     call.respond(HttpStatusCode.BadRequest,it.message!!)
                 }
             )
-        } catch (e: IllegalArgumentException) {
-            call.respond(HttpStatusCode.BadRequest, e.message ?: "Invalid file")
+        } catch (e: ContentTransformationException) {
+            call.respond(
+                status = HttpStatusCode.BadRequest,
+                message = ErrorResponse.fromThrowable(e,"Request have invalid multipart format")
+            )
         } catch (e: Exception) {
-            call.respond(HttpStatusCode.InternalServerError, "Upload failed: ${e.message}")
+            call.respond(
+                status = HttpStatusCode.InternalServerError,
+                message = ErrorResponse.fromThrowable(e,"Unexpected error, see logs for details")
+            )
         }
     }
 }

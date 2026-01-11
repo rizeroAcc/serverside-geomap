@@ -1,14 +1,18 @@
 package com.mapprjct.controller
 
+import com.mapprjct.AppConfig
 import com.mapprjct.ApplicationStartMode
 import com.mapprjct.database.daoimpl.SessionRepositoryImpl
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
-import com.mapprjct.database.storage.PostgresSessionStorage
+import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.SessionTable
 import com.mapprjct.database.tables.UserTable
+import com.mapprjct.di.repositoryModule
+import com.mapprjct.di.serviceModule
+import com.mapprjct.di.storageModule
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.RegistrationRequest
 import com.mapprjct.model.request.SignInRequest
@@ -23,6 +27,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.sessions.SessionStorage
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -30,10 +35,15 @@ import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.RegisterExtension
+import org.koin.core.context.GlobalContext.stopKoin
+import org.koin.ktor.ext.getKoin
+import org.koin.test.junit5.KoinTestExtension
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -45,6 +55,9 @@ class AuthenticationControllerTest{
     fun testKtorApp(
         block: suspend ApplicationTestBuilder.() -> Unit
     ) = testApplication {
+        environment {
+            config = ApplicationConfig("application-test.yaml")
+        }
         client = client.config {
             install(ContentNegotiation) { json() }
         }
@@ -58,6 +71,7 @@ class AuthenticationControllerTest{
                 )
             )
         }
+        startApplication()
         block()
     }
 
@@ -71,8 +85,6 @@ class AuthenticationControllerTest{
     }
 
     private lateinit var database : Database
-    private lateinit var userService : UserService
-    private lateinit var sessionStorage : SessionStorage
     @BeforeAll
     fun initialize() {
         database = Database.connect(
@@ -81,11 +93,11 @@ class AuthenticationControllerTest{
             user = postgreSQLContainer.username,
             password = postgreSQLContainer.password
         )
-        userService = UserService(
-            userRepository = UserRepositoryImpl(database),
-            database = database
-        )
-        sessionStorage = PostgresSessionStorage(SessionRepositoryImpl(database))
+    }
+
+    @AfterAll
+    fun shutdown() {
+        stopKoin()
     }
 
     @BeforeEach
@@ -103,6 +115,7 @@ class AuthenticationControllerTest{
 
     @Test
     fun `should register new user in system`() = testKtorApp {
+        val userService = this.application.getKoin().get<UserService>()
         val userForRegistration = User("89036559989","kirill")
         val userForRegistrationPassword = "testPassword"
         val registrationRequest = RegistrationRequest(
@@ -163,6 +176,7 @@ class AuthenticationControllerTest{
     }
     @Test
     fun `should authorize user`() = testKtorApp {
+        val sessionStorage = this.application.getKoin().get<SessionStorage>()
         val user = User("89036559989","kirill")
         val userPassword = "testPassword"
         val registrationRequest = RegistrationRequest(
@@ -209,6 +223,7 @@ class AuthenticationControllerTest{
     }
     @Test
     fun `should clear user sessions`() = testKtorApp {
+        val sessionStorage = this.application.getKoin().get<SessionStorage>()
         val user = User("89036559989","kirill")
         val userPassword = "testPassword"
         val registrationRequest = RegistrationRequest(

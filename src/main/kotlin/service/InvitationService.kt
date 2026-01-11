@@ -19,8 +19,8 @@ class InvitationService(
     /**
      * @throws IllegalArgumentException - if project UUID or role code invalid
      * @throws IllegalStateException - if user already have 5 invitations
+     * @throws InvitationValidationException.InvalidUserRole - if creating invitation for role Owner
      * @throws ProjectDMLException.ProjectNotFoundException - if project with ID doesn't exists
-     * @throws InvitationValidationException.InvalidUserRole - if role incorrect
      * */
     @OptIn(ExperimentalTime::class)
     suspend fun createInvitation(
