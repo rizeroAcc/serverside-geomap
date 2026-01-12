@@ -143,22 +143,32 @@ private fun Route.updateUserAvatar(userService: UserService){
 
         try {
             val multipart = call.receiveMultipart()
-            multipart.forEachPart {
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FileItem -> {
 
-            }
-            userService.updateUserAvatar(user,multipart).fold(
-                onSuccess = { user->
-                    call.respond(
-                        HttpStatusCode.Accepted,
-                        AvatarUpdateResponse(
-                            user = user
+                        val receivedFileName = part.originalFileName
+                            ?: throw IllegalArgumentException("Empty file name")
+
+                        userService.updateUserAvatar(user,receivedFileName, part.provider).fold(
+                            onSuccess = { user->
+                                call.respond(
+                                    HttpStatusCode.Accepted,
+                                    AvatarUpdateResponse(
+                                        user = user
+                                    )
+                                )
+                            },
+                            onFailure = {
+                                call.respond(HttpStatusCode.BadRequest,it.message!!)
+                            }
                         )
-                    )
-                },
-                onFailure = {
-                    call.respond(HttpStatusCode.BadRequest,it.message!!)
+                    }
+                    else -> {}
                 }
-            )
+                part.dispose()
+            }
+
         } catch (e: ContentTransformationException) {
             call.respond(
                 status = HttpStatusCode.BadRequest,

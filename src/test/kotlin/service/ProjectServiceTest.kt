@@ -19,7 +19,6 @@ import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.invitation.InvitationDMLExceptions
 import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
-import com.mapprjct.initKoin
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.Role
@@ -33,7 +32,6 @@ import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

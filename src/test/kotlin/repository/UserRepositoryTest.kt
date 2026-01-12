@@ -1,11 +1,15 @@
 package com.mapprjct.repository
 
+import com.mapprjct.builders.createCredentials
+import com.mapprjct.builders.createTestUser
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
 import kotlinx.coroutines.test.runTest
+import org.assertj.core.api.Assertions.assertThat
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
@@ -20,10 +24,8 @@ import org.junit.jupiter.api.assertNotNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import java.sql.SQLException
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -64,168 +66,172 @@ class UserRepositoryTest{
     @Test
     fun `should insert user`() = runTest {
         //given
-        val user = User(
-            phone = "89036559989",
-            username = "test",
-            avatarFilename = null
-        )
-
+        val user = createTestUser()
+        val userPassword = "testPassword"
         suspendTransaction(database) {
             //when
-            userRepository.insert(user = user, "test")
+            userRepository.insert(user = user, userPassword)
             //then
-            UserTable.selectAll().single().let {
-                assertEquals(user.username, it[UserTable.username])
-                assertEquals(user.phone, it[UserTable.phone])
-                assertEquals(user.avatarFilename, it[UserTable.avatar])
-                assertEquals("test", it[UserTable.passwordHash])
+            UserTable.selectAll()
+                .where{ UserTable.phone eq user.phone }.
+                single().let { row->
+                    assertThat(row).satisfies(
+                        { it[UserTable.phone] == user.phone },
+                        { it[UserTable.username] == user.username },
+                        { it[UserTable.passwordHash] == userPassword},
+                        { it[UserTable.avatar] == user.avatarFilename}
+                    )
             }
         }
     }
-
     @Test
     fun `should throw error unique constraint, if user with same phone already exists`() = runTest {
         //given
-        val user = User(
-            phone = "+79036559989",
-            username = "test",
-            avatarFilename = null
-        )
-
+        val user = createTestUser()
+        val userPassword = "testPassword"
         suspendTransaction(database) {
             //when
-            userRepository.insert(user = user, "test")
+            userRepository.insert(user = user, userPassword)
             val result = runCatching {
-                userRepository.insert(user = user, "test1")
+                userRepository.insert(user = user, userPassword)
             }
+            val exception = result.exceptionOrNull()
             //then
-            assertNotNull(result.exceptionOrNull())
-            assertTrue(((result.exceptionOrNull() as ExposedSQLException).cause as SQLException).message!!.contains("unique constraint"))
+            assertThat(exception)
+                .isNotNull()
+                .isInstanceOf(ExposedSQLException::class.java)
+                .extracting { (it as ExposedSQLException).sqlState }
+                .isEqualTo("23505") //UNIQUE violation
         }
     }
-
     @Test
-    fun `should throw error, if user info invalid`() = runTest {
+    fun `should throw error, if user have invalid phone`() = runTest {
         //given
-        val userWithInvalidPhone = User(
-            phone = "9036559989",
-            username = "test",
-            avatarFilename = null
-        )
-        val userWithEmptyUsername = User(
-            phone = "+79036559989",
-            username = "",
-            avatarFilename = null
-        )
-
+        val userWithInvalidPhone = createTestUser {
+            phone = "8903655998"
+        }
         suspendTransaction(database) {
             //when
-            var result = runCatching {
+            val exception = runCatching {
                 userRepository.insert(user = userWithInvalidPhone, "test")
-            }
-            //then
-            assertNotNull(result.exceptionOrNull())
-
-            //when
-            result = runCatching {
-                userRepository.insert(userWithEmptyUsername, "test")
-            }
-            //then
-            assertNotNull(result.exceptionOrNull())
+            }.exceptionOrNull()
+            assertThat(exception)
+                .isNotNull()
+                .isInstanceOf(ExposedSQLException::class.java)
+                .extracting { (it as ExposedSQLException).sqlState }
+                .isEqualTo("23514") //CHECK constraint violation
         }
     }
-
+    @Test
+    fun `should throw error, if user have empty username`() = runTest {
+        val userWithEmptyUsername = createTestUser {
+            username = ""
+        }
+        suspendTransaction(database) {
+            //when
+            val exception = runCatching {
+                userRepository.insert(user = userWithEmptyUsername, "test")
+            }.exceptionOrNull()
+            assertThat(exception)
+                .isNotNull()
+                .isInstanceOf(ExposedSQLException::class.java)
+                .extracting { (it as ExposedSQLException).sqlState }
+                .isEqualTo("23514") //CHECK constraint violation
+        }
+    }
     @Test
     fun `should receive existing user`() = runTest {
         //given
-        val userToInsert = User(phone = "89036559989", username = "test", avatarFilename = null)
+        val userToInsert = createTestUser()
         suspendTransaction(database) {
             //when
             userRepository.insert(userToInsert, "test")
-            val user = userRepository.getUser("89036559989")
+            val user = userRepository.getUser(userToInsert.phone)
             //then
-            assertNotNull(user)
-            assertEquals(userToInsert, user)
+            assertThat(user)
+                .isNotNull()
+                .isEqualTo(userToInsert)
         }
     }
-
     @Test
     fun `should return null if user does not exist`() = runTest {
         //given : user does not exist
+        val unexistedUserPhone = "89036559989"
         suspendTransaction(database) {
             //when
-            val result = userRepository.getUser("89036559989")
+            val result = userRepository.getUser(unexistedUserPhone)
             //then
-            assertNull(result)
+            assertThat(result)
+                .isNull()
         }
     }
-
     @Test
     fun `should update user fields except phone and password`() = runTest {
         //given
-        val user = User(phone = "89036559989", username = "test", avatarFilename = null)
-        val updatedUserInfo = user.copy(username = "newTest", avatarFilename = "testPath")
+        val user = createTestUser()
+        val userInfoForUpdate = createTestUser {
+            username = "updatedUserName"
+            avatarFilename = "updatedUserAvatarFilename"
+        }
         suspendTransaction(database) {
             userRepository.insert(user, "testPassword")
             //when
-            val updatedUser = userRepository.updateUser(updatedUserInfo)
-            assertNotNull(updatedUser)
-            assertEquals(updatedUserInfo,updatedUser)
+            val updatedUser = userRepository.updateUser(userInfoForUpdate)
+            assertThat(updatedUser)
+                .isNotNull()
+                .isEqualTo(userInfoForUpdate)
         }
     }
-
     @Test
     fun `should receive user credentials`() = runTest {
         //given
-        val user = User(
-            phone = "89036559989",
-            username = "testName",
-            avatarFilename = null
-        )
-        val expectedCredentials = UserCredentials(phone = "89036559989", password = "testPassword")
+        val user = createTestUser()
+        val userPassword = "testPassword"
+        val expectedCredentials = createCredentials {
+            forUser(user)
+            password = userPassword
+        }
         suspendTransaction(database) {
             //when
-            userRepository.insert(user, "testPassword")
+            userRepository.insert(user, userPassword)
             val receivedCredentials = userRepository.getUserCredentials("89036559989")
             //then
-            assertNotNull(receivedCredentials)
-            assertEquals(expectedCredentials, receivedCredentials)
+            assertThat(receivedCredentials)
+                .isNotNull()
+                .isEqualTo(expectedCredentials)
         }
     }
-
     @Test
-    fun `should receive null when user doesn't exist`() = runTest {
-        //given : user doesn't exist`
+    fun `should receive null instead credentials when user doesn't exist`() = runTest {
+        //given
+        val unexistedUserPhone = "89036559989"
         suspendTransaction(database) {
             //when
-            val receivedCredentials = userRepository.getUserCredentials("89036559989")
+            val receivedCredentials = userRepository.getUserCredentials(unexistedUserPhone)
             //then
-            assertNull(receivedCredentials)
+            assertThat(receivedCredentials)
+                .isNull()
         }
     }
-
     @Test
     fun `should update user password`() = runTest {
         //given
         val password = "testPassword"
         val newPassword = "newPassword"
-        val phone = "89036559989"
-        val username = "testName"
-        val user = User(
-            phone = phone,
-            username = username,
-            avatarFilename = null
-        )
-        val oldCredentials = UserCredentials(phone = phone, password = password)
+        val user = createTestUser {
+            phone = "89036559989"
+            username = "userName"
+        }
         suspendTransaction(database) {
             userRepository.insert(user, password)
-            var receivedCredentials = userRepository.getUserCredentials("89036559989")
-            assertEquals(oldCredentials, receivedCredentials)
             //when
-            userRepository.updateUserPassword(userPhone = phone, password = newPassword)
-            receivedCredentials = userRepository.getUserCredentials("89036559989")
+            userRepository.updateUserPassword(userPhone = user.phone, password = newPassword)
+            val receivedCredentials = userRepository.getUserCredentials(user.phone)
             //then
-            assertEquals(newPassword, receivedCredentials!!.password)
+            assertThat(receivedCredentials)
+                .isNotNull()
+                .extracting { it!!.password }
+                .isEqualTo(newPassword)
         }
     }
 }

@@ -11,6 +11,7 @@ import io.ktor.http.content.MultiPartData
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.copyAndClose
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -120,36 +121,31 @@ class UserService(
         }
     }
     /**
-     * @throws IllegalArgumentException - if filename is empty or file format invalid
+     * @throws IllegalArgumentException - if file format invalid
+     * @throws IOException - if file access error
+     * @throws com.mapprjct.exceptions.NetworkInterruptedException - if channel broken
      * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
-    suspend fun updateUserAvatar(user: User, multipart: MultiPartData) : Result<User> = runCatching {
-        //todo createFileStorage not work in service
+    suspend fun updateUserAvatar(
+        user: User,
+        fileName : String,
+        fileDataChannelProvider : suspend ()-> ByteReadChannel,
+    ) : Result<User> = runCatching {
         var avatarFileName: String? = null
         var updatedUser : User? = null
-        multipart.forEachPart { part ->
-            when (part) {
-                is PartData.FileItem -> {
-                    val receivedFileName = part.originalFileName
-                        ?: throw IllegalArgumentException("Empty file name")
 
-                    val fileExtension = receivedFileName.substringAfterLast('.').lowercase()
-                    if (!fileIsImage(receivedFileName)) {
-                        throw IllegalArgumentException("Allowed formats: jpg, png")
-                    }
-
-                    avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
-                        user = user,
-                        fileExtension = fileExtension,
-                        avatarByteProvider = part.provider
-                    ).getOrThrow()
-
-                    updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
-                }
-                else -> {}
-            }
-            part.dispose()
+        val fileExtension = fileName.substringAfterLast('.').lowercase()
+        if (!fileIsImage(fileName)) {
+            throw IllegalArgumentException("Allowed formats: jpg, png")
         }
+
+        avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
+            user = user,
+            fileExtension = fileExtension,
+            avatarByteProvider = fileDataChannelProvider
+        ).getOrThrow()
+
+        updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
 
         updatedUser!!
     }

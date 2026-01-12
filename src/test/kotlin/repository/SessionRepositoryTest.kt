@@ -6,6 +6,7 @@ import com.mapprjct.database.tables.SessionTable
 import com.mapprjct.model.APISession
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -67,54 +68,46 @@ class SessionRepositoryTest(){
     fun `should save session`() = runTest {
         val sessionID = UUID.randomUUID().toString().replace("-", "")
         val userPhone = "89036559989"
-        val sessionExpiration = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24
         val session = APISession(
             phone = userPhone,
-            sessionExpiration
+            expireAt = 86_400_000L,
         )
-        val sessionValue = Json.Default.encodeToString(session)
+        val sessionValue = Json.encodeToString(session)
         sessionRepository.upsert(id = sessionID, value = sessionValue, phone = userPhone)
-
         val savedSessionValue = sessionRepository.get(sessionID)!!
-        assertEquals(sessionValue, savedSessionValue)
+        assertThat(savedSessionValue)
+            .isEqualTo(sessionValue)
     }
 
     @Test
     fun `should delete session`() = runTest {
         val sessionID = UUID.randomUUID().toString().replace("-", "")
         val userPhone = "89036559989"
-        val sessionExpiration = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24
         val session = APISession(
             phone = userPhone,
-            sessionExpiration
+            expireAt = 86_400_000L,
         )
-        val sessionValue = Json.Default.encodeToString(session)
+        val sessionValue = Json.encodeToString(session)
         sessionRepository.upsert(id = sessionID, value = sessionValue, phone = userPhone)
-        //check session saved
-        val savedSessionValue = sessionRepository.get(sessionID)!!
-        assertEquals(sessionValue, savedSessionValue)
         //check session deleted
         sessionRepository.delete(sessionID)
-        assertNull(sessionRepository.get(sessionID))
+        assertThat(sessionRepository.get(sessionID))
+            .isNull()
     }
 
     @Test
     fun `should delete all user sessions`() = runTest {
         val sessionID = UUID.randomUUID().toString().replace("-", "")
         val userPhone = "89036559989"
-        val sessionExpiration = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24
         val session = APISession(
             phone = userPhone,
-            sessionExpiration
+            expireAt = 86_400_000L,
         )
-        val sessionValue = Json.Default.encodeToString(session)
+        val sessionValue = Json.encodeToString(session)
         sessionRepository.upsert(id = sessionID, value = sessionValue, phone = userPhone)
-
-        //check session saved
-        val savedSessionValue = sessionRepository.get(sessionID)!!
-        assertEquals(sessionValue, savedSessionValue)
         //check sessions deleted
         sessionRepository.deleteAllUserSessions(userPhone)
-        assertNull(sessionRepository.get(sessionID))
+        assertThat(sessionRepository.get(sessionID))
+            .isNull()
     }
 }

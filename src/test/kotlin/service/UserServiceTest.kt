@@ -11,17 +11,7 @@ import com.mapprjct.di.serviceModule
 import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
-import com.mapprjct.initKoin
 import com.mapprjct.model.dto.UserCredentials
-import io.ktor.client.request.forms.ChannelProvider
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
-import io.ktor.http.cio.MultipartEvent
-import io.ktor.http.content.MultiPartData
-import io.ktor.http.content.PartData
-import io.ktor.http.headers
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
 import io.ktor.utils.io.toByteArray
 import kotlinx.coroutines.runBlocking
@@ -305,13 +295,10 @@ class UserServiceTest : KoinTest {
         val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
         val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
 
-
-
         val updatedUser = userService.updateUserAvatar(
             user = user,
-            multipart = MultiPartData {
-
-            }
+            fileName = "AppLogo.png",
+            fileDataChannelProvider = { testAvatarData },
         )
         assertThat(updatedUser.getOrNull())
             .isNotNull()
