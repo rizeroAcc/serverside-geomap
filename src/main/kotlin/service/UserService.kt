@@ -7,19 +7,11 @@ import com.mapprjct.database.storage.AvatarStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.exceptions.user.UserValidationException
-import io.ktor.http.content.MultiPartData
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.copyAndClose
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.io.File
 import java.io.IOException
-import java.util.UUID
 import kotlin.Result.Companion.failure
 
 class UserService(
@@ -69,11 +61,12 @@ class UserService(
     }
     /**
      * @return [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
+     * @throws UserDMLExceptions.UserNotFoundException - if user not found
      * */
-    suspend fun getUser(userPhone : String) : Result<User?>{
+    suspend fun getUser(userPhone : String) : Result<User>{
         return runCatching {
             suspendTransaction {
-                userRepository.getUser(userPhone)
+                userRepository.getUser(userPhone) ?: throw UserDMLExceptions.UserNotFoundException(userPhone)
             }
         }
     }
@@ -82,14 +75,14 @@ class UserService(
      *
      * @return User - if update success
      *
-     *  null - if updating error occured
+     * @throws UserDMLExceptions.UserNotFoundException - if user not found
      *
-     *  [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
     suspend fun updateUser(user : User) : Result<User?>{
         return runCatching {
             suspendTransaction {
-                userRepository.updateUser(user)
+                userRepository.updateUser(user) ?: throw UserDMLExceptions.UserNotFoundException(user.phone)
             }
         }
     }
@@ -136,18 +129,32 @@ class UserService(
 
         val fileExtension = fileName.substringAfterLast('.').lowercase()
         if (!fileIsImage(fileName)) {
-            throw IllegalArgumentException("Allowed formats: jpg, png")
+            throw IllegalArgumentException("Invalid file format. Allowed formats: jpg, jpeg, png")
         }
 
-        avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
+        val foo =  avatarStorage.saveOrReplaceUserAvatar(
             user = user,
             fileExtension = fileExtension,
             avatarByteProvider = fileDataChannelProvider
-        ).getOrThrow()
+        )
+
+        avatarFileName = foo.getOrThrow()
 
         updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
 
         updatedUser!!
+    }
+
+    /**
+     * @throws UserDMLExceptions.UserAvatarNotFoundException - if user haven't avatar
+     * @throws java.io.FileNotFoundException - if file must exist but not found
+     * */
+    suspend fun getUserAvatar(userPhone : String) : Result<File> {
+        return runCatching {
+            val user = getUser(userPhone).getOrThrow()
+            user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
+            avatarStorage.getUserAvatar(user.avatarFilename).getOrThrow()
+        }
     }
 
     private fun fileIsImage(filename : String) : Boolean {

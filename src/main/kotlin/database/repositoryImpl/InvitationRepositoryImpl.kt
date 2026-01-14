@@ -16,7 +16,7 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
     /**
      * @throws IllegalStateException if user already have 5 invitations
      * */
-    override suspend fun insertInvitationCode(
+    override suspend fun insertInvitation(
         invitation : Invitation
     ): Result<Invitation> {
         val inviteCodeCount = InviteCodeTable.selectAll().where{

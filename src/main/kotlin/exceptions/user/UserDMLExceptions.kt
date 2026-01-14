@@ -11,4 +11,8 @@ sealed class UserDMLExceptions : BaseAppException() {
         override val shortMessage: String = "User with $phone not found"
         override val detailedMessage: String = "User with $phone not found"
     }
+    class UserAvatarNotFoundException() : UserDMLExceptions() {
+        override val shortMessage: String = "User avatar not found"
+        override val detailedMessage: String = "User avatar not found"
+    }
 }

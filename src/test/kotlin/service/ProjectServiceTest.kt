@@ -3,12 +3,8 @@
 package com.mapprjct.service
 
 import com.mapprjct.AppConfig
-import com.mapprjct.database.daoimpl.InvitationRepositoryImpl
 import com.mapprjct.database.repository.InvitationRepository
-import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.repository.UserRepository
-import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
-import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
@@ -36,19 +32,15 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.RegisterExtension
-import org.koin.core.Koin
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 import org.koin.test.KoinTest
 import org.koin.test.inject
-import org.koin.test.junit5.KoinTestExtension
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
-import kotlin.test.assertEquals
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -204,7 +196,7 @@ class ProjectServiceTest : KoinTest {
             expireAt = Clock.System.now().toEpochMilliseconds() + 86_400_000, // 24 часа
             role = Role.Worker
         )
-        invitationRepository.insertInvitationCode(invitation)
+        invitationRepository.insertInvitation(invitation)
         invitation
     }
 

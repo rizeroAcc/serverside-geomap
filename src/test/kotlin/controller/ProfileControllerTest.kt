@@ -2,13 +2,22 @@ package com.mapprjct.controller
 
 import com.mapprjct.AppConfig
 import com.mapprjct.ApplicationStartMode
+import com.mapprjct.database.tables.InviteCodeTable
+import com.mapprjct.database.tables.ProjectTable
+import com.mapprjct.database.tables.ProjectUsersTable
+import com.mapprjct.database.tables.SessionTable
+import com.mapprjct.database.tables.UserTable
+import com.mapprjct.getBean
+import com.mapprjct.getTestResourceAsChannel
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.RegistrationRequest
 import com.mapprjct.model.request.SignInRequest
 import com.mapprjct.model.response.AvatarUpdateResponse
+import com.mapprjct.model.response.RegistrationResponse
 import com.mapprjct.module
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.forms.ChannelProvider
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
@@ -26,8 +35,11 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
 import io.ktor.utils.io.toByteArray
+import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -53,6 +65,9 @@ class ProfileControllerTest {
 
         client = client.config {
             install(ContentNegotiation) { json() }
+            defaultRequest {
+                contentType(ContentType.Application.Json)
+            }
         }
 
         application {
@@ -64,7 +79,23 @@ class ProfileControllerTest {
                 )
             )
         }
+        startApplication()
         block()
+    }
+
+    suspend fun ApplicationTestBuilder.createRegisterAndLoginUser(
+        phone : String = "89036559989",
+        username : String = "admin",
+        password : String = "testPassword"
+    ) : Pair<User,String>{
+        val registrationRequest = RegistrationRequest(phone, username, password)
+        val registrationResponse = client.post("/register") {
+            setBody(registrationRequest)
+        }.body<RegistrationResponse>()
+        val signInResponse = client.post("/signin") {
+            setBody(SignInRequest(phone, password))
+        }
+        return registrationResponse.user to signInResponse.headers["Authorization"]!!
     }
 
     companion object {
@@ -93,33 +124,28 @@ class ProfileControllerTest {
     }
 
     @BeforeEach
-    fun setUp(){
+    fun setUp() : Unit = runBlocking {
+        suspendTransaction {
+            SchemaUtils.drop(
+                UserTable,
+                SessionTable,
+                ProjectTable,
+                ProjectUsersTable,
+                InviteCodeTable
+            )
+        }
         val dir = File("test")
         dir.deleteRecursively()
     }
 
     @Test
     fun `should get user info`() = testKtorApp {
-        val userForRegistration = User("89036559989","kirill")
-        val userForRegistrationPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = userForRegistration.phone,
-            username = userForRegistration.username,
-            password = userForRegistrationPassword
-        )
-        client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
-        }
-        val token = client.post("/signin"){
-            contentType(ContentType.Application.Json)
-            setBody(SignInRequest(userForRegistration.phone, userForRegistrationPassword))
-        }.headers["Authorization"]!!
+        val (user, token) = createRegisterAndLoginUser()
         val response = client.get("/user") {
             headers.append("Authorization", token)
         }
         assertThat(response.body<User>())
-            .isEqualTo(userForRegistration)
+            .isEqualTo(user)
     }
     @Test
     fun `should return 401 if user unauthorized`() = testKtorApp {
@@ -128,26 +154,11 @@ class ProfileControllerTest {
         }
         assertThat(response.status)
             .isEqualTo(HttpStatusCode.Unauthorized)
-
     }
     @Test
     fun `should update user avatar`() = testKtorApp {
-        val userForRegistration = User("89036559989","kirill")
-        val userForRegistrationPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = userForRegistration.phone,
-            username = userForRegistration.username,
-            password = userForRegistrationPassword
-        )
-        client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
-        }
-        val token = client.post("/signin"){
-            contentType(ContentType.Application.Json)
-            setBody(SignInRequest(userForRegistration.phone, userForRegistrationPassword))
-        }.headers["Authorization"]!!
-
+        val (user, token) = createRegisterAndLoginUser()
+        val avatarData = getTestResourceAsChannel("avatar/AppLogo.png")
         val response = client.post("/user/avatar") {
             headers.append("Authorization", token)
             setBody(
@@ -155,25 +166,22 @@ class ProfileControllerTest {
                     parts = formData {
                         this.append(
                             key = "file",
-                            value = ChannelProvider{
-                                ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!
-                                    .toByteReadChannel()
-                            },
+                            value = ChannelProvider{ avatarData },
                             headers = Headers.build {
                                 append(HttpHeaders.ContentDisposition, "filename=\"AppLogo.png\"")
                                 append(HttpHeaders.ContentType, "image/png")
                             }
                         )
                     }
-
                 )
             )
         }
+        //check avatar updated
         assertThat(response.status)
             .isEqualTo(HttpStatusCode.Accepted)
         val filename = response.body<AvatarUpdateResponse>().user.avatarFilename!!
-        val providedFileBytes = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel().toByteArray()
-        val savedFile = File(this.application.getKoin().get<AppConfig>().avatarResourcePath + filename)
+        val providedFileBytes = getTestResourceAsChannel("avatar/AppLogo.png").toByteArray()
+        val savedFile = File(getBean<AppConfig>().avatarResourcePath + filename)
         val savedFileBytes = savedFile.readBytes()
         assertThat(savedFileBytes)
             .isEqualTo(providedFileBytes)

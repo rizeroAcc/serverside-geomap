@@ -45,7 +45,7 @@ class InvitationService(
                 inviteCode = UUID.randomUUID(),
                 role = invitationRole
             )
-            val invitation = invitationRepository.insertInvitationCode(newInvitation)
+            val invitation = invitationRepository.insertInvitation(newInvitation)
             return invitation
         }
 

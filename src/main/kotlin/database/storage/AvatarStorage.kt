@@ -11,5 +11,9 @@ interface AvatarStorage {
      * @return new avatar path
      * */
     suspend fun saveOrReplaceUserAvatar(user : User, fileExtension : String, avatarByteProvider: suspend () -> ByteReadChannel) : Result<String>
+    /**
+     * @throws java.io.FileNotFoundException - if avatar not found
+     * */
+    suspend fun getUserAvatar(avatarFilename : String) : Result<File>
     suspend fun getUploadDirectory() : File
 }

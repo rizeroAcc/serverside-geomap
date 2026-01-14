@@ -27,7 +27,7 @@ data class ErrorResponse(
         @OptIn(ExperimentalTime::class)
         fun loggedDatabaseException(exception: ExposedSQLException) : ErrorResponse{
             return ErrorResponse(
-                message = "Server error",
+                message = "Server database error",
                 detailedMessage = "See logs for more details",
                 timestamp = Clock.System.now().toEpochMilliseconds(),
                 errorID = UUID.randomUUID().toString()
@@ -35,7 +35,7 @@ data class ErrorResponse(
         }
 
         @OptIn(ExperimentalTime::class)
-        fun fromThrowable(throwable : Throwable, whatsHappened : String) : ErrorResponse{
+        fun fromText(whatsHappened : String) : ErrorResponse{
             return ErrorResponse(
                 message = whatsHappened,
                 detailedMessage = whatsHappened,

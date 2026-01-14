@@ -10,12 +10,13 @@ import io.ktor.utils.io.copyAndClose
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 
 class FileAvatarStorage(
-    val appConfig: AppConfig
+    appConfig: AppConfig
 ) : AvatarStorage{
 
     val uploadDir = getOrCreateUploadDirectory(appConfig.avatarResourcePath)
@@ -49,6 +50,14 @@ class FileAvatarStorage(
                 is IOException -> Result.failure(exception)
                 else -> Result.failure(NetworkInterruptedException("Receive file failed because connection terminated"))
             }
+        }
+    }
+
+    override suspend fun getUserAvatar(avatarFilename: String): Result<File> {
+        return runCatching {
+            val avatar = File(uploadDir, avatarFilename)
+            if (!avatar.exists()) throw FileNotFoundException()
+            avatar
         }
     }
 
