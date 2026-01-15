@@ -43,6 +43,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.koin.core.context.GlobalContext.stopKoin
@@ -138,52 +139,60 @@ class ProfileControllerTest {
         dir.deleteRecursively()
     }
 
-    @Test
-    fun `should get user info`() = testKtorApp {
-        val (user, token) = createRegisterAndLoginUser()
-        val response = client.get("/user") {
-            headers.append("Authorization", token)
+    @Nested
+    inner class GetProfileInfo{
+        @Test
+        fun `should get user info`() = testKtorApp {
+            val (user, token) = createRegisterAndLoginUser()
+            val response = client.get("/user") {
+                headers.append("Authorization", token)
+            }
+            assertThat(response.body<User>())
+                .isEqualTo(user)
         }
-        assertThat(response.body<User>())
-            .isEqualTo(user)
-    }
-    @Test
-    fun `should return 401 if user unauthorized`() = testKtorApp {
-        val response = client.get("/user") {
-            headers.append("Authorization", "token")
+        @Test
+        fun `should return 401 if user unauthorized`() = testKtorApp {
+            val response = client.get("/user") {
+                headers.append("Authorization", "token")
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.Unauthorized)
         }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Unauthorized)
     }
-    @Test
-    fun `should update user avatar`() = testKtorApp {
-        val (user, token) = createRegisterAndLoginUser()
-        val avatarData = getTestResourceAsChannel("avatar/AppLogo.png")
-        val response = client.post("/user/avatar") {
-            headers.append("Authorization", token)
-            setBody(
-                MultiPartFormDataContent(
-                    parts = formData {
-                        this.append(
-                            key = "file",
-                            value = ChannelProvider{ avatarData },
-                            headers = Headers.build {
-                                append(HttpHeaders.ContentDisposition, "filename=\"AppLogo.png\"")
-                                append(HttpHeaders.ContentType, "image/png")
-                            }
-                        )
-                    }
+
+    @Nested
+    inner class UpdateProfileAvatar{
+        @Test
+        fun `should update user avatar`() = testKtorApp {
+            val (user, token) = createRegisterAndLoginUser()
+            val avatarData = getTestResourceAsChannel("avatar/AppLogo.png")
+            val response = client.post("/user/avatar") {
+                headers.append("Authorization", token)
+                setBody(
+                    MultiPartFormDataContent(
+                        parts = formData {
+                            this.append(
+                                key = "file",
+                                value = ChannelProvider{ avatarData },
+                                headers = Headers.build {
+                                    append(HttpHeaders.ContentDisposition, "filename=\"AppLogo.png\"")
+                                    append(HttpHeaders.ContentType, "image/png")
+                                }
+                            )
+                        }
+                    )
                 )
-            )
+            }
+            //check avatar updated
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.Accepted)
+            val filename = response.body<AvatarUpdateResponse>().user.avatarFilename!!
+            val providedFileBytes = getTestResourceAsChannel("avatar/AppLogo.png").toByteArray()
+            val savedFile = File(getBean<AppConfig>().avatarResourcePath + filename)
+            val savedFileBytes = savedFile.readBytes()
+            assertThat(savedFileBytes)
+                .isEqualTo(providedFileBytes)
         }
-        //check avatar updated
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Accepted)
-        val filename = response.body<AvatarUpdateResponse>().user.avatarFilename!!
-        val providedFileBytes = getTestResourceAsChannel("avatar/AppLogo.png").toByteArray()
-        val savedFile = File(getBean<AppConfig>().avatarResourcePath + filename)
-        val savedFileBytes = savedFile.readBytes()
-        assertThat(savedFileBytes)
-            .isEqualTo(providedFileBytes)
     }
+
 }

@@ -44,9 +44,9 @@ fun Application.configureProfileController() {
     routing {
         authenticate("auth-session") {
             route("/user"){
-                getUserInfo(userService)
-                updateUserAvatar(userService)
-                getUserAvatar(userService)
+                getProfileInfo(userService)
+                updateProfileAvatar(userService)
+                getProfileAvatar(userService)
                 changePassword(userService,sessionStorage)
                 updateUserInfo(userService)
             }
@@ -112,7 +112,7 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
     }
 }
 
-private fun Route.getUserAvatar(userService : UserService) {
+private fun Route.getProfileAvatar(userService : UserService) {
     get("/avatar") {
         val session = call.principal<APISession>()!!
         userService.getUserAvatar(session.phone).fold(
@@ -137,7 +137,7 @@ private fun Route.getUserAvatar(userService : UserService) {
     }
 }
 
-private fun Route.updateUserAvatar(userService: UserService){
+private fun Route.updateProfileAvatar(userService: UserService){
     post("/avatar"){
         val session = call.principal<APISession>()!!
         val user = userService.getUser(session.phone).getOrElse { error->
@@ -179,12 +179,12 @@ private fun Route.updateUserAvatar(userService: UserService){
     }
 }
 
-private fun Route.getUserInfo(userService: UserService){
+private fun Route.getProfileInfo(userService: UserService){
     get(){
         val session = call.principal<APISession>()!!
         val user = userService.getUser(session.phone).getOrElse { error->
             when(error){
-                is UserDMLExceptions.UserNotFoundException -> logErrorAndRespondISE(IllegalStateException(), "")
+                is UserDMLExceptions.UserNotFoundException -> logErrorAndRespondISE(IllegalStateException(), "User not found. See logs")
                 else -> logDatabaseErrorAndRespondISE(error as ExposedSQLException)
             }
             return@get

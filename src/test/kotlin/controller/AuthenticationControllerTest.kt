@@ -38,6 +38,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -113,162 +114,173 @@ class AuthenticationControllerTest{
         }
     }
 
-    @Test
-    fun `should register new user in system`() = testKtorApp {
-        val userService = this.application.getKoin().get<UserService>()
-        val userForRegistration = User("89036559989","kirill")
-        val userForRegistrationPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = userForRegistration.phone,
-            username = userForRegistration.username,
-            password = userForRegistrationPassword
-        )
+    @Nested
+    inner class Registration{
+        @Test
+        fun `should register new user in system`() = testKtorApp {
+            val userService = this.application.getKoin().get<UserService>()
+            val userForRegistration = User("89036559989","kirill")
+            val userForRegistrationPassword = "testPassword"
+            val registrationRequest = RegistrationRequest(
+                phone = userForRegistration.phone,
+                username = userForRegistration.username,
+                password = userForRegistrationPassword
+            )
 
-        val responseBody = client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
-        }.body<RegistrationResponse>()
-        val awaitedResponse = RegistrationResponse(userForRegistration)
-        assertThat(responseBody)
-            .isEqualTo(awaitedResponse)
-        //check user created
-        val savedUser = userService.getUser(userForRegistration.phone).getOrThrow()
-        assertThat(savedUser)
-            .isEqualTo(userForRegistration)
+            val responseBody = client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }.body<RegistrationResponse>()
+            val awaitedResponse = RegistrationResponse(userForRegistration)
+            assertThat(responseBody)
+                .isEqualTo(awaitedResponse)
+            //check user created
+            val savedUser = userService.getUser(userForRegistration.phone).getOrThrow()
+            assertThat(savedUser)
+                .isEqualTo(userForRegistration)
+        }
+        @Test
+        fun `should respond 409 if user already registered`() = testKtorApp {
+            val userForRegistration = User("89036559989","kirill")
+            val userForRegistrationPassword = "testPassword"
+            val registrationRequest = RegistrationRequest(
+                phone = userForRegistration.phone,
+                username = userForRegistration.username,
+                password = userForRegistrationPassword
+            )
+
+            client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }
+            val response = client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.Conflict)
+        }
+        @Test
+        fun `should respond 400 if registration data invalid`() = testKtorApp {
+            val userForRegistration = User("89036559989", "")
+            val userForRegistrationPassword = "testPassword"
+            val registrationRequest = RegistrationRequest(
+                phone = userForRegistration.phone,
+                username = userForRegistration.username,
+                password = userForRegistrationPassword
+            )
+
+            val response = client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.BadRequest)
+        }
     }
-    @Test
-    fun `should respond 409 if user already registered`() = testKtorApp {
-        val userForRegistration = User("89036559989","kirill")
-        val userForRegistrationPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = userForRegistration.phone,
-            username = userForRegistration.username,
-            password = userForRegistrationPassword
-        )
 
-        client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
+    @Nested
+    inner class Authorization{
+        @Test
+        fun `should authorize user`() = testKtorApp {
+            val sessionStorage = this.application.getKoin().get<SessionStorage>()
+            val user = User("89036559989","kirill")
+            val userPassword = "testPassword"
+            val registrationRequest = RegistrationRequest(
+                phone = user.phone,
+                username = user.username,
+                password = userPassword
+            )
+
+            client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }
+
+            val signInRequest = SignInRequest(
+                phone = user.phone,
+                password = userPassword
+            )
+
+            val response = client.post("/signin") {
+                contentType(ContentType.Application.Json)
+                setBody(signInRequest)
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.OK)
+            val responseToken = response.headers["Authorization"]!!
+            val readSession = runCatching {
+                sessionStorage.read(responseToken)
+            }
+            assertThat(readSession.isSuccess)
         }
-        val response = client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
+        @Test
+        fun `should respond 401 if credentials invalid`() = testKtorApp {
+            val signInRequest = SignInRequest(
+                phone = "89036559989",
+                password = "userPassword"
+            )
+
+            val response = client.post("/signin") {
+                contentType(ContentType.Application.Json)
+                setBody(signInRequest)
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.Unauthorized)
         }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Conflict)
     }
-    @Test
-    fun `should respond 400 if registration data invalid`() = testKtorApp {
-        val userForRegistration = User("89036559989", "")
-        val userForRegistrationPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = userForRegistration.phone,
-            username = userForRegistration.username,
-            password = userForRegistrationPassword
-        )
 
-        val response = client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
-        }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.BadRequest)
-    }
-    @Test
-    fun `should authorize user`() = testKtorApp {
-        val sessionStorage = this.application.getKoin().get<SessionStorage>()
-        val user = User("89036559989","kirill")
-        val userPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = user.phone,
-            username = user.username,
-            password = userPassword
-        )
+    @Nested
+    inner class LogOut{
+        @Test
+        fun `should clear user sessions`() = testKtorApp {
+            val sessionStorage = this.application.getKoin().get<SessionStorage>()
+            val user = User("89036559989","kirill")
+            val userPassword = "testPassword"
+            val registrationRequest = RegistrationRequest(
+                phone = user.phone,
+                username = user.username,
+                password = userPassword
+            )
+            val signInRequest = SignInRequest(
+                phone = user.phone,
+                password = userPassword
+            )
+            client.post("/register") {
+                contentType(ContentType.Application.Json)
+                setBody(registrationRequest)
+            }
+            val token = client.post("/signin") {
+                contentType(ContentType.Application.Json)
+                setBody(signInRequest)
+            }.headers["Authorization"]!!
 
-        client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
+            val response = client.post("/logout") {
+                contentType(ContentType.Application.Json)
+                headers.append("Authorization", token)
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.Accepted)
+            //check session cleared
+            val readToken = runCatching {
+                sessionStorage.read(token)
+            }
+            assertThat(readToken.exceptionOrNull())
+                .isInstanceOf(NoSuchElementException::class.java)
         }
-
-        val signInRequest = SignInRequest(
-            phone = user.phone,
-            password = userPassword
-        )
-
-        val response = client.post("/signin") {
-            contentType(ContentType.Application.Json)
-            setBody(signInRequest)
+        @Test
+        fun `should answer 404 if session invalid`() = testKtorApp {
+            val response = client.post("/logout") {
+                headers.append("Authorization", "token")
+            }
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.NotFound)
         }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.OK)
-        val responseToken = response.headers["Authorization"]!!
-        val readSession = runCatching {
-            sessionStorage.read(responseToken)
+        @Test
+        fun `should answer 204 if session isn't set`() = testKtorApp {
+            val response = client.post("/logout") {}
+            assertThat(response.status)
+                .isEqualTo(HttpStatusCode.NoContent)
         }
-        assertThat(readSession.isSuccess)
-    }
-    @Test
-    fun `should respond 401 if credentials invalid`() = testKtorApp {
-        val signInRequest = SignInRequest(
-            phone = "89036559989",
-            password = "userPassword"
-        )
-
-        val response = client.post("/signin") {
-            contentType(ContentType.Application.Json)
-            setBody(signInRequest)
-        }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Unauthorized)
-    }
-    @Test
-    fun `should clear user sessions`() = testKtorApp {
-        val sessionStorage = this.application.getKoin().get<SessionStorage>()
-        val user = User("89036559989","kirill")
-        val userPassword = "testPassword"
-        val registrationRequest = RegistrationRequest(
-            phone = user.phone,
-            username = user.username,
-            password = userPassword
-        )
-        val signInRequest = SignInRequest(
-            phone = user.phone,
-            password = userPassword
-        )
-        client.post("/register") {
-            contentType(ContentType.Application.Json)
-            setBody(registrationRequest)
-        }
-        val token = client.post("/signin") {
-            contentType(ContentType.Application.Json)
-            setBody(signInRequest)
-        }.headers["Authorization"]!!
-
-        val response = client.post("/logout") {
-            contentType(ContentType.Application.Json)
-            headers.append("Authorization", token)
-        }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.Accepted)
-        //check session cleared
-        val readToken = runCatching {
-            sessionStorage.read(token)
-        }
-        assertThat(readToken.exceptionOrNull())
-            .isInstanceOf(NoSuchElementException::class.java)
-    }
-    @Test
-    fun `should answer 404 if session invalid`() = testKtorApp {
-        val response = client.post("/logout") {
-            headers.append("Authorization", "token")
-        }
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.NotFound)
-    }
-    @Test
-    fun `should answer 204 if session invalid`() = testKtorApp {
-        val response = client.post("/logout") {}
-        assertThat(response.status)
-            .isEqualTo(HttpStatusCode.NoContent)
     }
 }

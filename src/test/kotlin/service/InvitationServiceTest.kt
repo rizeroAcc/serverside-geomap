@@ -28,6 +28,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -110,112 +111,113 @@ class InvitationServiceTest : KoinTest {
         }
     }
 
+    @Nested
+    inner class CreateInvitation {
+        @Test
+        fun `should create invitation`() = runTest {
+            suspendTransaction {
+                val user = createUser(phone ="89036559989", name ="test",password = "test")
+                val project = projectRepository.insertProject(user.phone,"test")
+                val invitation = invitationService.createInvitation(
+                    inviterPhone = user.phone,
+                    projectID = project.projectID,
+                    role = Role.Worker.toShort()
+                ).getOrThrow()
+                InviteCodeTable.selectAll().where {
+                    InviteCodeTable.inviteCode eq invitation.inviteCode
+                }.single().let {
+                    val insertedInvitation = Invitation(
+                        inviterPhone = it[InviteCodeTable.inviterPhone],
+                        inviteCode = it[InviteCodeTable.inviteCode],
+                        projectID = it[InviteCodeTable.projectID],
+                        expireAt = it[InviteCodeTable.expireAt],
+                        role = it[InviteCodeTable.role].asRole()
+                    )
+                    assertThat(insertedInvitation).isEqualTo(invitation)
+                }
 
-
-    @Test
-    fun `should create invitation`() = runTest {
-        suspendTransaction {
-            val user = createUser(phone ="89036559989", name ="test",password = "test")
-            val project = projectRepository.insertProject(user.phone,"test")
-            val invitation = invitationService.createInvitation(
-                inviterPhone = user.phone,
-                projectID = project.projectID,
-                role = Role.Worker.toShort()
-            ).getOrThrow()
-            InviteCodeTable.selectAll().where {
-                InviteCodeTable.inviteCode eq invitation.inviteCode
-            }.single().let {
-                val insertedInvitation = Invitation(
-                    inviterPhone = it[InviteCodeTable.inviterPhone],
-                    inviteCode = it[InviteCodeTable.inviteCode],
-                    projectID = it[InviteCodeTable.projectID],
-                    expireAt = it[InviteCodeTable.expireAt],
-                    role = it[InviteCodeTable.role].asRole()
-                )
-                assertThat(insertedInvitation).isEqualTo(invitation)
             }
-
         }
-    }
 
-    @Test
-    fun `should return IllegalArgumentException if projectID invalid`() = runTest {
-        val invalidID = UUID.randomUUID().toString().replace("-", "")
-        val result = invitationService.createInvitation(
-            inviterPhone = "89036559989",
-            projectID = invalidID,
-            role = Role.Worker.toShort()
-        )
-        assertThat(result.exceptionOrNull())
-            .isInstanceOf(IllegalArgumentException::class.java)
-    }
-
-    @Test
-    fun `should return IllegalArgumentException if role is Invalid`() = runTest {
-        suspendTransaction {
-            val user = createUser(phone ="89036559989", name ="test",password = "test")
-            val project = projectRepository.insertProject(user.phone,"test")
-            val invalidRoleCode = 5.toShort()
+        @Test
+        fun `should return IllegalArgumentException if projectID invalid`() = runTest {
+            val invalidID = UUID.randomUUID().toString().replace("-", "")
             val result = invitationService.createInvitation(
                 inviterPhone = "89036559989",
-                projectID = project.projectID,
-                role = invalidRoleCode
+                projectID = invalidID,
+                role = Role.Worker.toShort()
             )
             assertThat(result.exceptionOrNull())
                 .isInstanceOf(IllegalArgumentException::class.java)
         }
-    }
 
-    @Test
-    fun `should return InvitationValidationException if role is Owner`() = runTest {
-        suspendTransaction {
-            val user = createUser(phone ="89036559989", name ="test",password = "test")
-            val project = projectRepository.insertProject(user.phone,"test")
-
-            val result = invitationService.createInvitation(
-                inviterPhone = "89036559989",
-                projectID = project.projectID,
-                role = Role.Owner.toShort()
-            )
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(InvitationValidationException.InvalidUserRole::class.java)
+        @Test
+        fun `should return IllegalArgumentException if role is Invalid`() = runTest {
+            suspendTransaction {
+                val user = createUser(phone ="89036559989", name ="test",password = "test")
+                val project = projectRepository.insertProject(user.phone,"test")
+                val invalidRoleCode = 5.toShort()
+                val result = invitationService.createInvitation(
+                    inviterPhone = "89036559989",
+                    projectID = project.projectID,
+                    role = invalidRoleCode
+                )
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(IllegalArgumentException::class.java)
+            }
         }
 
-    }
+        @Test
+        fun `should return InvitationValidationException if role is Owner`() = runTest {
+            suspendTransaction {
+                val user = createUser(phone ="89036559989", name ="test",password = "test")
+                val project = projectRepository.insertProject(user.phone,"test")
 
-    @Test
-    fun `should return ProjectNotFoundException if project doesn't exists`() = runTest {
-        suspendTransaction {
-            val projectID = UUID.randomUUID().toString()
-            val result = invitationService.createInvitation(
-                inviterPhone = "89036559989",
-                projectID = projectID,
-                role = Role.Worker.toShort()
-            )
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(ProjectDMLException.ProjectNotFoundException::class.java)
+                val result = invitationService.createInvitation(
+                    inviterPhone = "89036559989",
+                    projectID = project.projectID,
+                    role = Role.Owner.toShort()
+                )
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(InvitationValidationException.InvalidUserRole::class.java)
+            }
+
         }
-    }
 
-    @Test
-    fun `should return IllegalArgumentException if user have over 5 invitations`() = runTest {
-        suspendTransaction {
-            val user = createUser(phone ="89036559989", name ="test",password = "test")
-            val project = projectRepository.insertProject(user.phone,"test")
-            for (i in 1..5){
-                invitationService.createInvitation(
+        @Test
+        fun `should return ProjectNotFoundException if project doesn't exists`() = runTest {
+            suspendTransaction {
+                val projectID = UUID.randomUUID().toString()
+                val result = invitationService.createInvitation(
+                    inviterPhone = "89036559989",
+                    projectID = projectID,
+                    role = Role.Worker.toShort()
+                )
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(ProjectDMLException.ProjectNotFoundException::class.java)
+            }
+        }
+
+        @Test
+        fun `should return IllegalArgumentException if user have over 5 invitations`() = runTest {
+            suspendTransaction {
+                val user = createUser(phone ="89036559989", name ="test",password = "test")
+                val project = projectRepository.insertProject(user.phone,"test")
+                for (i in 1..5){
+                    invitationService.createInvitation(
+                        inviterPhone = "89036559989",
+                        projectID = project.projectID,
+                        role = Role.Worker.toShort()
+                    )
+                }
+                val result = invitationService.createInvitation(
                     inviterPhone = "89036559989",
                     projectID = project.projectID,
                     role = Role.Worker.toShort()
                 )
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(IllegalStateException::class.java)
             }
-            val result = invitationService.createInvitation(
-                inviterPhone = "89036559989",
-                projectID = project.projectID,
-                role = Role.Worker.toShort()
-            )
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(IllegalStateException::class.java)
         }
     }
 }

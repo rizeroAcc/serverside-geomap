@@ -30,6 +30,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.koin.core.context.startKoin
@@ -75,6 +76,26 @@ class ProjectServiceTest : KoinTest {
         }
     }
 
+    private suspend fun setupUsersAndProject(): Triple<User, User, Project> = suspendTransaction {
+        val owner = createUser("89036559989", "test")
+        val invited = createUser("89038518685", "user")
+        val project = projectService.createProject(owner.phone, "test1").getOrThrow()
+
+        Triple(owner, invited, project)
+    }
+
+    private suspend fun createAndSaveInvitation(owner: User, project: Project): Invitation = suspendTransaction {
+        val invitation = Invitation(
+            inviterPhone = owner.phone,
+            inviteCode = UUID.randomUUID(),
+            projectID = UUID.fromString(project.projectID),
+            expireAt = Clock.System.now().toEpochMilliseconds() + 86_400_000, // 24 часа
+            role = Role.Worker
+        )
+        invitationRepository.insertInvitation(invitation)
+        invitation
+    }
+
     @BeforeAll
     fun initialize() {
         database = Database.connect(
@@ -109,142 +130,132 @@ class ProjectServiceTest : KoinTest {
         }
     }
 
-    @Test
-    fun `should create new project`() = runTest {
-        //given
-        val projectName = "testProject"
-        val user = createUser("89036559989","test")
-        suspendTransaction(database) {
-            //when
-            val createdProject = projectService.createProject(
-                user.phone, projectName
-            ).getOrThrow()
-            //then
-            ProjectTable.selectAll().where {
-                ProjectTable.id eq UUID.fromString(createdProject.projectID)
-            }.single().let {
-                val storedProject = Project(
-                    projectID = it[ProjectTable.id].toString(),
-                    name = it[ProjectTable.name],
-                    membersCount = it[ProjectTable.membersCount].toInt()
-                )
-                assertThat(storedProject).isEqualTo(createdProject)
-            }
-        }
-    }
-    @Test
-    fun `should return UserNotFoundException when user does not exist`() = runTest {
-        //given
-        val wrongPhone = "89036559999"
-        suspendTransaction(database) {
-            //when
-            val exception = projectService.createProject(wrongPhone,"test")
-                .exceptionOrNull()
-            //then
-            assertThat(exception)
-                .isNotNull()
-                .isInstanceOf(UserDMLExceptions.UserNotFoundException::class.java)
-        }
-    }
-    @Test
-    fun `should get all user projects`() = runTest {
-        suspendTransaction(database) {
+    @Nested
+    inner class CreateProject {
+        @Test
+        fun `should create new project`() = runTest {
+            //given
+            val projectName = "testProject"
             val user = createUser("89036559989","test")
+            suspendTransaction(database) {
+                //when
+                val createdProject = projectService.createProject(
+                    user.phone, projectName
+                ).getOrThrow()
+                //then
+                ProjectTable.selectAll().where {
+                    ProjectTable.id eq UUID.fromString(createdProject.projectID)
+                }.single().let {
+                    val storedProject = Project(
+                        projectID = it[ProjectTable.id].toString(),
+                        name = it[ProjectTable.name],
+                        membersCount = it[ProjectTable.membersCount].toInt()
+                    )
+                    assertThat(storedProject).isEqualTo(createdProject)
+                }
+            }
+        }
+        @Test
+        fun `should return UserNotFoundException when user does not exist`() = runTest {
             //given
-            val userProjects = listOf(
-                projectService.createProject(user.phone,"test1").getOrThrow(),
-                projectService.createProject(user.phone,"test2").getOrThrow(),
-                projectService.createProject(user.phone,"test3").getOrThrow()
-            )
-            //when
-            val receivedUserProjects = projectService.getAllUserProjects(user.phone).getOrThrow()
-            //then
-            receivedUserProjects.forEachIndexed { index, projectWithRole ->
-                assertThat(projectWithRole.project)
-                    .isEqualTo(userProjects[index])
+            val wrongPhone = "89036559999"
+            suspendTransaction(database) {
+                //when
+                val exception = projectService.createProject(wrongPhone,"test")
+                    .exceptionOrNull()
+                //then
+                assertThat(exception)
+                    .isNotNull()
+                    .isInstanceOf(UserDMLExceptions.UserNotFoundException::class.java)
             }
         }
     }
-    @Test
-    fun `should return UserNotFoundException if user does not exist`() = runTest {
-        //given
-        val wrongPhone = "89036559999"
-        suspendTransaction(database) {
-            //when
-            val exception = projectService.getAllUserProjects(wrongPhone)
-                .exceptionOrNull()
-            //then
-            assertThat(exception)
-                .isNotNull()
-                .isInstanceOf(UserDMLExceptions.UserNotFoundException::class.java)
+
+    @Nested
+    inner class GetUserProjects {
+        @Test
+        fun `should get all user projects`() = runTest {
+            suspendTransaction(database) {
+                val user = createUser("89036559989","test")
+                //given
+                val userProjects = listOf(
+                    projectService.createProject(user.phone,"test1").getOrThrow(),
+                    projectService.createProject(user.phone,"test2").getOrThrow(),
+                    projectService.createProject(user.phone,"test3").getOrThrow()
+                )
+                //when
+                val receivedUserProjects = projectService.getAllUserProjects(user.phone).getOrThrow()
+                //then
+                receivedUserProjects.forEachIndexed { index, projectWithRole ->
+                    assertThat(projectWithRole.project)
+                        .isEqualTo(userProjects[index])
+                }
+            }
+        }
+        @Test
+        fun `should return UserNotFoundException if user does not exist`() = runTest {
+            //given
+            val wrongPhone = "89036559999"
+            suspendTransaction(database) {
+                //when
+                val exception = projectService.getAllUserProjects(wrongPhone)
+                    .exceptionOrNull()
+                //then
+                assertThat(exception)
+                    .isNotNull()
+                    .isInstanceOf(UserDMLExceptions.UserNotFoundException::class.java)
+            }
         }
     }
 
-    private suspend fun setupUsersAndProject(): Triple<User, User, Project> = suspendTransaction {
-        val owner = createUser("89036559989", "test")
-        val invited = createUser("89038518685", "user")
-        val project = projectService.createProject(owner.phone, "test1").getOrThrow()
-
-        Triple(owner, invited, project)
-    }
-
-    private suspend fun createAndSaveInvitation(owner: User, project: Project): Invitation = suspendTransaction {
-        val invitation = Invitation(
-            inviterPhone = owner.phone,
-            inviteCode = UUID.randomUUID(),
-            projectID = UUID.fromString(project.projectID),
-            expireAt = Clock.System.now().toEpochMilliseconds() + 86_400_000, // 24 часа
-            role = Role.Worker
-        )
-        invitationRepository.insertInvitation(invitation)
-        invitation
-    }
-
-    @Test
-    fun `should add user to project by invitation and delete invitation`() = runTest {
-        suspendTransaction {
-            //given
-            val (owner, invitedUser, project) = setupUsersAndProject()
-            val invitation = createAndSaveInvitation(owner, project)
-            //when
-            projectService.joinProject(
-                userPhone = invitedUser.phone,
-                invitationCode = invitation.inviteCode.toString()
-            )
-            //then
-            val invitedUserProjects = projectService.getAllUserProjects(invitedUser.phone).getOrThrow()
-            assertThat(invitedUserProjects[0].project.projectID)
-                .isEqualTo(project.projectID)
-            assertThat(invitationRepository.getInvitation(invitation.inviteCode))
-                .isNull()
+    @Nested
+    inner class JoinProject{
+        @Test
+        fun `should add user to project by invitation and delete invitation`() = runTest {
+            suspendTransaction {
+                //given
+                val (owner, invitedUser, project) = setupUsersAndProject()
+                val invitation = createAndSaveInvitation(owner, project)
+                //when
+                projectService.joinProject(
+                    userPhone = invitedUser.phone,
+                    invitationCode = invitation.inviteCode.toString()
+                )
+                //then
+                val invitedUserProjects = projectService.getAllUserProjects(invitedUser.phone).getOrThrow()
+                assertThat(invitedUserProjects[0].project.projectID)
+                    .isEqualTo(project.projectID)
+                assertThat(invitationRepository.getInvitation(invitation.inviteCode))
+                    .isNull()
+            }
         }
-    }
-    @Test
-    fun `should return InvitationNotFoundException if invitation doesn't exist`() = runTest {
-        suspendTransaction {
-            //given
-            val user = createUser("89036559989", "test")
-            //when
-            val result = projectService.joinProject(user.phone, UUID.randomUUID().toString())
-            //then
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(InvitationDMLExceptions.InvitationNotFoundException::class.java)
+        @Test
+        fun `should return InvitationNotFoundException if invitation doesn't exist`() = runTest {
+            suspendTransaction {
+                //given
+                val user = createUser("89036559989", "test")
+                //when
+                val result = projectService.joinProject(user.phone, UUID.randomUUID().toString())
+                //then
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(InvitationDMLExceptions.InvitationNotFoundException::class.java)
+            }
         }
-    }
-    @Test
-    fun `should return UserAlreadyProjectMemberException if user already project member`() = runTest {
-        suspendTransaction {
-            //given
-            val (owner, invitedUser, project) = setupUsersAndProject()
-            val invitation = createAndSaveInvitation(owner, project)
-            //when
-            val result = projectService.joinProject(
-                userPhone = owner.phone,
-                invitationCode = invitation.inviteCode.toString()
-            )
-            //then
-            assertThat(result.exceptionOrNull())
-                .isInstanceOf(ProjectValidationException.UserAlreadyProjectMember::class.java)
+        @Test
+        fun `should return UserAlreadyProjectMemberException if user already project member`() = runTest {
+            suspendTransaction {
+                //given
+                val (owner, invitedUser, project) = setupUsersAndProject()
+                val invitation = createAndSaveInvitation(owner, project)
+                //when
+                val result = projectService.joinProject(
+                    userPhone = owner.phone,
+                    invitationCode = invitation.inviteCode.toString()
+                )
+                //then
+                assertThat(result.exceptionOrNull())
+                    .isInstanceOf(ProjectValidationException.UserAlreadyProjectMember::class.java)
+            }
         }
     }
 }

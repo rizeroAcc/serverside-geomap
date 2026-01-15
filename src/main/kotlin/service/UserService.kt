@@ -22,11 +22,9 @@ class UserService(
 ) {
 
     /**
-     * @return [UserValidationException] - if user data incorrect
-     *
-     * [UserDMLExceptions.UserAlreadyExistsException] - if user with phone already exists
-     *
-     * [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
+     * @throws [UserValidationException] - if user data incorrect
+     * @throws[UserDMLExceptions.UserAlreadyExistsException] - if user with phone already exists
+     * @throws[org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
      * */
     suspend fun createUser(userCredentials : UserCredentials, username : String) : Result<User> {
         userCredentials.validate().onFailure { return failure(it) }
