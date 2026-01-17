@@ -182,6 +182,7 @@ class UserRepositoryTest{
                 .isEqualTo(userInfoForUpdate)
         }
     }
+
     @Test
     fun `should receive user credentials`() = runTest {
         //given
