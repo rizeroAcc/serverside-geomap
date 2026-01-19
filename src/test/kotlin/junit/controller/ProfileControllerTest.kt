@@ -1,4 +1,4 @@
-package com.mapprjct.controller
+package com.mapprjct.junit.controller
 
 import com.mapprjct.AppConfig
 import com.mapprjct.ApplicationStartMode

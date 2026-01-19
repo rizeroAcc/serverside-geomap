@@ -4,6 +4,7 @@ import com.mapprjct.database.repository.SessionRepository
 import com.mapprjct.model.APISession
 import io.ktor.server.sessions.SessionStorage
 import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.util.UUID
 
 class PostgresSessionStorage (val sessionRepository: SessionRepository) : SessionStorage {
@@ -21,7 +22,9 @@ class PostgresSessionStorage (val sessionRepository: SessionRepository) : Sessio
     }
 
     suspend fun clearUserSessions(phone: String) {
-        sessionRepository.deleteAllUserSessions(phone)
+        suspendTransaction {
+            sessionRepository.deleteAllUserSessions(phone)
+        }
     }
     suspend fun writeSession(session: APISession) : String {
         val newSessionID = UUID.randomUUID().toString().replace("-", "")

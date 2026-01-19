@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalTime::class)
 
-package com.mapprjct.service
+package com.mapprjct.junit.service
 
 import com.mapprjct.AppConfig
 import com.mapprjct.database.repository.InvitationRepository
@@ -19,6 +19,7 @@ import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.Role
 import com.mapprjct.model.dto.User
+import com.mapprjct.service.ProjectService
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat

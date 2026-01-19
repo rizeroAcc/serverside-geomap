@@ -7,12 +7,13 @@ import org.jetbrains.exposed.v1.jdbc.Database
 
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 
 class SessionRepositoryImpl(val database: Database) : SessionRepository {
     override suspend fun upsert(id: String, value: String, phone: String) {
-        transaction(database) {
+        suspendTransaction (database) {
             SessionTable.upsert(
                 onUpdate = {
                     it[SessionTable.data] = value
@@ -42,9 +43,7 @@ class SessionRepositoryImpl(val database: Database) : SessionRepository {
     }
 
     override suspend fun deleteAllUserSessions(phone: String) {
-        transaction(database) {
-            SessionTable.deleteWhere { SessionTable.phone eq phone }
-        }
+        SessionTable.deleteWhere { SessionTable.phone eq phone }
     }
 
 }

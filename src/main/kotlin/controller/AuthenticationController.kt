@@ -60,13 +60,14 @@ private fun Routing.signInRoute(
         val user = userService.getUser(request.phone).getOrElse { error->
             call.respond(HttpStatusCode.InternalServerError, ErrorResponse.loggedDatabaseException(error as ExposedSQLException))
             return@post
-        }!!
+        }
         (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone)
         val session = APISession(
             phone = user.phone ,
             expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
         )
         call.sessions.set("Authorization" , session)
+        println("before respond")
         call.respond(
             status = HttpStatusCode.OK,
             message = SignInResponse(
@@ -74,6 +75,7 @@ private fun Routing.signInRoute(
                 tokenExpiration = session.expireAt
             )
         )
+        println("Successfully logged in")
     }
 }
 

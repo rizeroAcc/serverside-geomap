@@ -1,4 +1,4 @@
-package com.mapprjct.service
+package com.mapprjct.junit.service
 
 import com.mapprjct.AppConfig
 import com.mapprjct.database.storage.AvatarStorage
@@ -9,6 +9,7 @@ import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.service.UserService
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.runBlocking

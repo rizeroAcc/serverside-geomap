@@ -1,4 +1,4 @@
-package com.mapprjct.repository
+package com.mapprjct.junit.repository
 
 import com.mapprjct.builders.createCredentials
 import com.mapprjct.builders.createTestUser

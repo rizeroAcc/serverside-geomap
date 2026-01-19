@@ -1,4 +1,4 @@
-package com.mapprjct.service
+package com.mapprjct.junit.service
 
 import com.mapprjct.AppConfig
 import com.mapprjct.database.repository.InvitationRepository
@@ -17,6 +17,7 @@ import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Role
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.asRole
+import com.mapprjct.service.InvitationService
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat

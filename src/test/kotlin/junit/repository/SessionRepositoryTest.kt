@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
@@ -97,17 +98,19 @@ class SessionRepositoryTest(){
 
     @Test
     fun `should delete all user sessions`() = runTest {
-        val sessionID = UUID.randomUUID().toString().replace("-", "")
-        val userPhone = "89036559989"
-        val session = APISession(
-            phone = userPhone,
-            expireAt = 86_400_000L,
-        )
-        val sessionValue = Json.encodeToString(session)
-        sessionRepository.upsert(id = sessionID, value = sessionValue, phone = userPhone)
-        //check sessions deleted
-        sessionRepository.deleteAllUserSessions(userPhone)
-        assertThat(sessionRepository.get(sessionID))
-            .isNull()
+        suspendTransaction {
+            val sessionID = UUID.randomUUID().toString().replace("-", "")
+            val userPhone = "89036559989"
+            val session = APISession(
+                phone = userPhone,
+                expireAt = 86_400_000L,
+            )
+            val sessionValue = Json.encodeToString(session)
+            sessionRepository.upsert(id = sessionID, value = sessionValue, phone = userPhone)
+            //check sessions deleted
+            sessionRepository.deleteAllUserSessions(userPhone)
+            assertThat(sessionRepository.get(sessionID))
+                .isNull()
+        }
     }
 }
