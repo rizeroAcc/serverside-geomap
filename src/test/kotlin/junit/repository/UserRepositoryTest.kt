@@ -5,8 +5,6 @@ import com.mapprjct.builders.createTestUser
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.model.dto.User
-import com.mapprjct.model.dto.UserCredentials
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
@@ -20,12 +18,9 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.assertNotNull
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 @Testcontainers
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

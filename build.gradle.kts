@@ -46,6 +46,7 @@ dependencies {
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.assertj.core)
     testImplementation(libs.koin.test.junit5)
+    testImplementation(libs.koin.kotest)
 
     testImplementation(libs.kotest.testcontainers)
     testImplementation(libs.kotest.runner)

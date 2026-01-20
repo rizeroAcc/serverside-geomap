@@ -9,7 +9,7 @@ import java.util.UUID
 
 class PostgresSessionStorage (val sessionRepository: SessionRepository) : SessionStorage {
     override suspend fun write(id: String, value: String) {
-        val phone = Json.Default.decodeFromString<APISession>(value).phone
+        val phone = Json.decodeFromString<APISession>(value).phone
         sessionRepository.upsert(id = id, value = value, phone = phone)
     }
 
@@ -28,7 +28,7 @@ class PostgresSessionStorage (val sessionRepository: SessionRepository) : Sessio
     }
     suspend fun writeSession(session: APISession) : String {
         val newSessionID = UUID.randomUUID().toString().replace("-", "")
-        val serializedSession = Json.Default.encodeToString(session)
+        val serializedSession = Json.encodeToString(session)
         write(newSessionID,serializedSession)
         return newSessionID
     }

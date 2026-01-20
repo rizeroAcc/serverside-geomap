@@ -1,7 +1,7 @@
 [versions]
 exposed = "1.0.0-rc-4"
 h2 = "2.3.232"
-koin = "4.1.2-Beta1"
+koin = "4.1.1"
 kotlin = "2.2.20"
 ktor = "3.3.2"
 logback = "1.4.14"
@@ -11,7 +11,7 @@ testcontainers = "1.21.4"
 kotlinJUnit = "2.3.0"
 kotlinCoroutinesTest = "1.10.2"
 assertJ = "3.27.6"
-kotest = "6.0.7"
+kotest = "6.1.0"
 
 [libraries]
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
@@ -45,6 +45,7 @@ kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version
 kotlin-test-coroutines = { module = "org.jetbrains:kotlinx-coroutines-test", version.ref = "kotlinCoroutinesTest"}
 
 koin-test-junit5 = { module = "io.insert-koin:koin-test-junit5", version.ref = "koin"}
+koin-kotest = { module = "io.kotest:kotest-extensions-koin", version.ref = "kotest"}
 
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers"}
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers"}

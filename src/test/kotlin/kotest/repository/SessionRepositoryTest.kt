@@ -8,13 +8,12 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.Json
-import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.testcontainers.containers.PostgreSQLContainer
-import java.util.UUID
+import java.util.*
 
 class SessionRepositoryTest : FunSpec({
     val postgres = PostgreSQLContainer("postgres:latest")

@@ -114,15 +114,15 @@ private fun Routing.registrationRoute(userService : UserService){
                 when(error){
                     is UserValidationException-> call.respond(
                         status = HttpStatusCode.BadRequest,
-                        message = ErrorResponse.Companion.fromAppException(error)
+                        message = ErrorResponse.fromAppException(error)
                     )
                     is UserDMLExceptions.UserAlreadyExistsException -> call.respond(
                         status = HttpStatusCode.Conflict,
-                        message = ErrorResponse.Companion.fromAppException(error)
+                        message = ErrorResponse.fromAppException(error)
                     )
                     is ExposedSQLException -> call.respond(
                         status = HttpStatusCode.InternalServerError,
-                        message = ErrorResponse.Companion.loggedDatabaseException(error)
+                        message = ErrorResponse.loggedDatabaseException(error)
                     )
                 }
             }
