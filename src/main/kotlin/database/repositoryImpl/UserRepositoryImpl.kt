@@ -18,7 +18,7 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
     override suspend fun insert(user: User, password : String){
         UserTable.insert {
             it[phone] = user.phone.replaceRussiaCountryCode()
-            it[UserTable.username] = user.username
+            it[username] = user.username
             it[passwordHash] = password
             it[avatar] = user.avatarFilename
         }

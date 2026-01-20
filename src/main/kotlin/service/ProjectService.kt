@@ -9,15 +9,32 @@ import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectWithRole
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.util.UUID
 import kotlin.Result.Companion.success
 
 class ProjectService(
+    val database: Database,
     val userRepository: UserRepository,
     val projectRepository: ProjectRepository,
     val invitationRepository: InvitationRepository
 ) {
+    /**
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
+     * @throws IllegalArgumentException - if project id is not valid UUID
+     * @throws ProjectDMLException.ProjectNotFoundException - if project not found
+     * */
+    suspend fun getProject(projectID : String) : Result<Project>{
+        return runCatching {
+            val projectUUID = UUID.fromString(projectID)
+            suspendTransaction {
+                projectRepository.getProjectById(projectUUID)
+                    ?: throw ProjectDMLException.ProjectNotFoundException(projectID)
+            }
+        }
 
+    }
     /**
      * [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
      *
@@ -25,9 +42,11 @@ class ProjectService(
      * */
     suspend fun getAllUserProjects(userPhone : String): Result<List<ProjectWithRole>>{
         return runCatching {
-            userRepository.getUser(userPhone)
-                ?: throw UserDMLExceptions.UserNotFoundException(userPhone)
-            projectRepository.getAllUserProjects(userPhone)
+            suspendTransaction(database) {
+                userRepository.getUser(userPhone)
+                    ?: throw UserDMLExceptions.UserNotFoundException(userPhone)
+                projectRepository.getAllUserProjects(userPhone)
+            }
         }
     }
     /**
@@ -37,9 +56,11 @@ class ProjectService(
      * */
     suspend fun createProject(creatorPhone : String, projectName : String) : Result<Project>{
         return runCatching {
-            userRepository.getUser(creatorPhone)
-                ?: throw UserDMLExceptions.UserNotFoundException(creatorPhone)
-            projectRepository.insertProject(creatorPhone, projectName)
+            suspendTransaction(database) {
+                userRepository.getUser(creatorPhone)
+                    ?: throw UserDMLExceptions.UserNotFoundException(creatorPhone)
+                projectRepository.insertProject(creatorPhone, projectName)
+            }
         }
     }
 
@@ -73,10 +94,12 @@ class ProjectService(
                 throw ProjectValidationException.UserAlreadyProjectMember(invitation.projectID.toString())
             }
 
-            projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
+            return suspendTransaction(database) {
+                projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
+                invitationRepository.deleteInvitation(invitation.inviteCode)
+                success(project.copy(membersCount = project.membersCount + 1))
+            }
 
-            invitationRepository.deleteInvitation(invitation.inviteCode)
-            return success(project)
         }
     }
 }

@@ -86,7 +86,7 @@ fun Application.configureProjectsController() {
                     )
                 }
                 post("/join") {
-                    //todo incorrect phone saved : remove 8, check user already in project
+                    //todo check user already in project
                     val session = call.principal<APISession>()!!
                     val request = call.receive<JoinToProjectRequest>()
                     val userPhone = session.phone

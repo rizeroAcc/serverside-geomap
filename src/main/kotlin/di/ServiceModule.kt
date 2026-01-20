@@ -8,6 +8,6 @@ import org.koin.dsl.module
 
 val serviceModule = module {
     single<UserService> { UserService(get(), get(), get(), get()) }
-    single<ProjectService> { ProjectService(get(),get(), get()) }
+    single<ProjectService> { ProjectService(get(),get(), get(), get()) }
     single<InvitationService> { InvitationService(get(), get()) }
 }
