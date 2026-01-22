@@ -51,7 +51,6 @@ fun Application.configureKoin(startMode: ApplicationStartMode) {
             repositoryModule,
             storageModule,
             serviceModule,
-
         )
     }
 }

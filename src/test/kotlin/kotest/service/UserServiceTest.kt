@@ -9,7 +9,6 @@ import com.mapprjct.di.serviceModule
 import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
-import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
 import io.kotest.assertions.asClue
@@ -20,12 +19,9 @@ import io.kotest.extensions.testcontainers.TestContainerSpecExtension
 import io.kotest.koin.KoinExtension
 import io.kotest.koin.KoinLifecycleMode
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNot
 import io.kotest.matchers.shouldNotBe
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.jvm.javaio.toByteReadChannel
-import io.ktor.utils.io.toByteArray
-import org.assertj.core.api.Assertions.assertThat
+import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.*
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
@@ -37,7 +33,6 @@ import org.koin.test.KoinTest
 import org.koin.test.inject
 import org.testcontainers.containers.PostgreSQLContainer
 import java.io.File
-import kotlin.test.assertTrue
 
 class UserServiceTest : KoinTest, FunSpec(){
     init {

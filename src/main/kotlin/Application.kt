@@ -33,5 +33,5 @@ fun Application.module(startMode: ApplicationStartMode = ApplicationStartMode.DE
     configureProjectsController()
     configureProfileController()
 
-    configureDBTables(clearTables = false)
+    configureDBTables(clearTables = startMode is ApplicationStartMode.TEST)
 }

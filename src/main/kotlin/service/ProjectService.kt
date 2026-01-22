@@ -72,29 +72,29 @@ class ProjectService(
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{
         return runCatching {
             val code = UUID.fromString(invitationCode)
-
-            val invitation = invitationRepository.getInvitation(
-                code = code
-            ) ?: throw InvitationDMLExceptions.InvitationNotFoundException(invitationCode)
-
-            if (userPhone == invitation.inviterPhone){
-                throw ProjectValidationException.UserAlreadyProjectMember(
-                    invitation.projectID.toString()
-                )
-            }
-
-            val project = projectRepository.getProjectById(invitation.projectID)
-                ?: throw ProjectDMLException.ProjectNotFoundException(invitation.projectID.toString())
-
-            val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
-                it.project.projectID
-            }.contains(invitation.projectID.toString())
-
-            if (userAlreadyStayInProject){
-                throw ProjectValidationException.UserAlreadyProjectMember(invitation.projectID.toString())
-            }
-
             return suspendTransaction(database) {
+                val invitation = invitationRepository.getInvitation(
+                    code = code
+                ) ?: throw InvitationDMLExceptions.InvitationNotFoundException(invitationCode)
+
+                if (userPhone == invitation.inviterPhone){
+                    throw ProjectValidationException.UserAlreadyProjectMember(
+                        invitation.projectID.toString()
+                    )
+                }
+
+                val project = projectRepository.getProjectById(invitation.projectID)
+                    ?: throw ProjectDMLException.ProjectNotFoundException(invitation.projectID.toString())
+
+                val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
+                    it.project.projectID
+                }.contains(invitation.projectID.toString())
+
+                if (userAlreadyStayInProject){
+                    throw ProjectValidationException.UserAlreadyProjectMember(invitation.projectID.toString())
+                }
+
+
                 projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
                 invitationRepository.deleteInvitation(invitation.inviteCode)
                 success(project.copy(membersCount = project.membersCount + 1))

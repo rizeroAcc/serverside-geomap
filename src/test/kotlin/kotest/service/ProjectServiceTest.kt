@@ -10,7 +10,9 @@ import com.mapprjct.database.tables.UserTable
 import com.mapprjct.di.repositoryModule
 import com.mapprjct.di.serviceModule
 import com.mapprjct.di.storageModule
+import com.mapprjct.exceptions.invitation.InvitationDMLExceptions
 import com.mapprjct.exceptions.project.ProjectDMLException
+import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
@@ -30,7 +32,6 @@ import io.kotest.koin.KoinLifecycleMode
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
-import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
@@ -98,6 +99,7 @@ class ProjectServiceTest : KoinTest, FunSpec() {
         beforeTest {
             suspendTransaction (database){
                 ProjectTable.deleteAll()
+                InviteCodeTable.deleteAll()
             }
         }
 
@@ -195,29 +197,45 @@ class ProjectServiceTest : KoinTest, FunSpec() {
             val inviterCredentials = UserCredentials(inviterUser.phone, "testPass")
             userService.createUser(inviterCredentials, inviterUser.username)
 
-            val invitedUser = createTestUser {
+            val userWhoInvited = createTestUser {
                 phone = "89038518685"
             }
-            val invitedCredentials = UserCredentials(invitedUser.phone, "testPass")
-            userService.createUser(invitedCredentials, invitedUser.username)
+            val invitedCredentials = UserCredentials(userWhoInvited.phone, "testPass")
+            userService.createUser(invitedCredentials, userWhoInvited.username)
 
             test("should add user to project by invitation and delete invitation"){
-                val project = projectService.createProject(inviterUser.phone, "test").getOrThrow()
+                var project = projectService.createProject(inviterUser.phone, "test").getOrThrow()
                 val invitation = createAndSaveInvitation(inviterUser, project)
                 //when
-                val updatedProject = shouldNotThrowAny {
+                project = shouldNotThrowAny {
                     projectService.joinProject(
-                        userPhone = invitedUser.phone,
+                        userPhone = userWhoInvited.phone,
                         invitationCode = invitation.inviteCode.toString()
-                    )
+                    ).getOrThrow()
                 }
                 //todo fix test
                 //then
-                projectService.getAllUserProjects(invitedUser.phone)
+                projectService.getAllUserProjects(userWhoInvited.phone)
                     .getOrThrow()
-                    .map {it.project} shouldContain updatedProject
-                assertThat(invitationRepository.getInvitation(invitation.inviteCode))
-                    .isNull()
+                    .map {it.project} shouldContain project
+                suspendTransaction(database) {
+                    invitationRepository.getInvitation(invitation.inviteCode) shouldBe null
+                }
+            }
+            test("should return UserAlreadyProjectMember when user already stay in project"){
+                var project = projectService.createProject(inviterUser.phone, "test").getOrThrow()
+                val invitation = createAndSaveInvitation(inviterUser, project)
+                shouldThrow<ProjectValidationException.UserAlreadyProjectMember> {
+                    projectService.joinProject(
+                        userPhone = inviterUser.phone,
+                        invitationCode = invitation.inviteCode.toString()
+                    ).getOrThrow()
+                }
+            }
+            test("should return InvitationNotFoundException if invitation doesn't exist"){
+                shouldThrow<InvitationDMLExceptions.InvitationNotFoundException> {
+                    projectService.joinProject(userWhoInvited.phone, UUID.randomUUID().toString()).getOrThrow()
+                }
             }
         }
     }

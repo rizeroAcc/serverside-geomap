@@ -48,9 +48,11 @@ dependencies {
     testImplementation(libs.koin.test.junit5)
     testImplementation(libs.koin.kotest)
 
+
     testImplementation(libs.kotest.testcontainers)
     testImplementation(libs.kotest.runner)
     testImplementation(libs.kotest.assertions.core)
+    testImplementation(libs.kotest.assertions.ktor)
 
     testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
 

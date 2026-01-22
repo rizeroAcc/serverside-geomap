@@ -7,11 +7,14 @@ import com.mapprjct.exceptions.project.ProjectDMLException
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Role
 import com.mapprjct.model.dto.asRole
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 class InvitationService(
+    val database: Database,
     val projectRepository: ProjectRepository,
     val invitationRepository: InvitationRepository
 ) {
@@ -30,23 +33,24 @@ class InvitationService(
     ) : Result<Invitation>{
         return runCatching {
             val projectUUID = UUID.fromString(projectID)
+            suspendTransaction(database) {
+                projectRepository.getProjectById(projectUUID)
+                    ?: throw ProjectDMLException.ProjectNotFoundException(projectID)
 
-            projectRepository.getProjectById(projectUUID)
-                ?: throw ProjectDMLException.ProjectNotFoundException(projectID)
+                val invitationRole = role.asRole()
+                if (invitationRole == Role.Owner)
+                    throw InvitationValidationException.InvalidUserRole(invitationRole)
 
-            val invitationRole = role.asRole()
-            if (invitationRole == Role.Owner)
-                throw InvitationValidationException.InvalidUserRole(invitationRole)
-
-            val newInvitation = Invitation(
-                inviterPhone = inviterPhone,
-                projectID = projectUUID,
-                expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24,
-                inviteCode = UUID.randomUUID(),
-                role = invitationRole
-            )
-            val invitation = invitationRepository.insertInvitation(newInvitation)
-            return invitation
+                val newInvitation = Invitation(
+                    inviterPhone = inviterPhone,
+                    projectID = projectUUID,
+                    expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 24,
+                    inviteCode = UUID.randomUUID(),
+                    role = invitationRole
+                )
+                val invitation = invitationRepository.insertInvitation(newInvitation).getOrThrow()
+                return@suspendTransaction invitation
+            }
         }
 
     }
