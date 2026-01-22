@@ -213,8 +213,6 @@ class ProjectServiceTest : KoinTest, FunSpec() {
                         invitationCode = invitation.inviteCode.toString()
                     ).getOrThrow()
                 }
-                //todo fix test
-                //then
                 projectService.getAllUserProjects(userWhoInvited.phone)
                     .getOrThrow()
                     .map {it.project} shouldContain project
