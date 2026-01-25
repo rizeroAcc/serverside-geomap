@@ -5,11 +5,12 @@ import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.APISession
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
-import com.mapprjct.model.request.ChangePasswordRequest
-import com.mapprjct.model.request.ChangeUserInfoRequest
-import com.mapprjct.model.response.AvatarUpdateResponse
-import com.mapprjct.model.response.ChangePasswordResponse
+import com.mapprjct.model.request.profile.ChangePasswordRequest
+import com.mapprjct.model.request.profile.ChangeUserInfoRequest
+import com.mapprjct.model.response.profile.AvatarUpdateResponse
+import com.mapprjct.model.response.profile.ChangePasswordResponse
 import com.mapprjct.model.response.error.ErrorResponse
+import com.mapprjct.model.response.profile.DeleteAvatarResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -23,6 +24,7 @@ import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
@@ -44,13 +46,37 @@ fun Application.configureProfileController() {
     routing {
         authenticate("auth-session") {
             route("/user"){
-                getProfileInfo(userService)
                 updateProfileAvatar(userService)
                 getProfileAvatar(userService)
+                deleteProfileAvatar(userService)
+                getProfileInfo(userService)
                 changePassword(userService,sessionStorage)
                 updateUserInfo(userService)
             }
         }
+    }
+}
+
+
+
+private fun Route.deleteProfileAvatar(userService: UserService) {
+    delete("/avatar") {
+        val session = call.principal<APISession>()!!
+        val user = userService.getUser(session.phone).getOrElse {
+            logErrorAndRespondISE(it, "User not found")
+            return@delete
+        }
+        userService.deleteUserAvatar(user).fold(
+            onSuccess = {
+                call.respond(HttpStatusCode.OK, DeleteAvatarResponse(user.copy(avatarFilename = null)))
+            },
+            onFailure = { exception ->
+                when (exception) {
+                    is UserDMLExceptions.UserAvatarNotFoundException -> call.respond(HttpStatusCode.NotFound)
+                    else -> logErrorAndRespondISE(exception, "Unexpected error")
+                }
+            }
+        )
     }
 }
 
@@ -106,8 +132,8 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
                 is UserDMLExceptions.UserNotFoundException -> logErrorAndRespondISE(error, "User not found. See logs")
                 is IllegalArgumentException -> respondBadRequest("Incorrect old password")
                 is ExposedSQLException -> logDatabaseErrorAndRespondISE(error)
+                else -> logErrorAndRespondISE(error,"Unexpected error")
             }
-            call.respond(HttpStatusCode.BadRequest, error.message!!)
         })
     }
 }
@@ -115,7 +141,11 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
 private fun Route.getProfileAvatar(userService : UserService) {
     get("/avatar") {
         val session = call.principal<APISession>()!!
-        userService.getUserAvatar(session.phone).fold(
+        val user = userService.getUser(session.phone).getOrElse {
+            logErrorAndRespondISE(it, "User not found")
+            return@get
+        }
+        userService.getUserAvatar(user.phone).fold(
             onSuccess = { avatar->
                 call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
                 call.respondFile(avatar)
@@ -151,7 +181,10 @@ private fun Route.updateProfileAvatar(userService: UserService){
                 when (part) {
                     is PartData.FileItem -> {
                         val receivedFileName = part.originalFileName
-                            ?: throw IllegalArgumentException("Empty file name")
+                        if(receivedFileName.isNullOrBlank()){
+                            throw IllegalArgumentException("Empty file name")
+                        }
+
 
                         val updatedUser = userService.updateUserAvatar(user,receivedFileName, part.provider).getOrThrow()
                         call.respond(

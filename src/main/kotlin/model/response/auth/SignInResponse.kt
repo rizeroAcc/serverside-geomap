@@ -1,4 +1,4 @@
-package com.mapprjct.model.response
+package com.mapprjct.model.response.auth
 
 import com.mapprjct.model.dto.User
 import kotlinx.serialization.Serializable

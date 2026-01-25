@@ -70,11 +70,8 @@ class UserService(
     }
     /**
      * Update user info **without phone**
-     *
      * @return User - if update success
-     *
      * @throws UserDMLExceptions.UserNotFoundException - if user not found
-     *
      * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
     suspend fun updateUser(user : User) : Result<User?>{
@@ -86,12 +83,9 @@ class UserService(
     }
     /**
      * @return [UserCredentials] - if update success
-     *
-     * [UserDMLExceptions.UserNotFoundException] - if user not found
-     *
-     * [IllegalArgumentException] - if old password wrong
-     *
-     *  [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
+     * @throws UserDMLExceptions.UserNotFoundException - if user not found
+     * @throws IllegalArgumentException - if old password wrong
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
     suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : String) : Result<UserCredentials>{
         return runCatching {
@@ -122,23 +116,18 @@ class UserService(
         fileName : String,
         fileDataChannelProvider : suspend ()-> ByteReadChannel,
     ) : Result<User> = runCatching {
-        var avatarFileName: String? = null
-        var updatedUser : User? = null
-
         val fileExtension = fileName.substringAfterLast('.').lowercase()
         if (!fileIsImage(fileName)) {
             throw IllegalArgumentException("Invalid file format. Allowed formats: jpg, jpeg, png")
         }
 
-        val foo =  avatarStorage.saveOrReplaceUserAvatar(
+        val avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
             user = user,
             fileExtension = fileExtension,
             avatarByteProvider = fileDataChannelProvider
-        )
+        ).getOrThrow()
 
-        avatarFileName = foo.getOrThrow()
-
-        updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
+        val updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
 
         updatedUser!!
     }
@@ -149,9 +138,25 @@ class UserService(
      * */
     suspend fun getUserAvatar(userPhone : String) : Result<File> {
         return runCatching {
-            val user = getUser(userPhone).getOrThrow()
+            val user = getUser(userPhone).getOrElse {
+                throw UserDMLExceptions.UserNotFoundException(phone = userPhone)
+            }
             user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
             avatarStorage.getUserAvatar(user.avatarFilename).getOrThrow()
+        }
+    }
+    /**
+     * @throws UserDMLExceptions.UserAvatarNotFoundException - if user haven't avatar
+     * @throws java.io.FileNotFoundException - if file must exist but not found
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException
+     * */
+    suspend fun deleteUserAvatar(user: User) : Result<Unit>{
+        return runCatching {
+            user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
+            suspendTransaction(database) {
+                updateUser(user.copy(avatarFilename = null))
+                avatarStorage.deleteAvatar(user.avatarFilename).getOrThrow()
+            }
         }
     }
 

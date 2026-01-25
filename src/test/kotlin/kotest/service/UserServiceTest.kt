@@ -12,6 +12,7 @@ import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
 import io.kotest.assertions.asClue
+import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
@@ -66,7 +67,6 @@ class UserServiceTest : KoinTest, FunSpec(){
                 mode = KoinLifecycleMode.Root
             )
         )
-        // Подключаемся один раз к контейнеру
 
         val userService:UserService by inject()
         val avatarStorage:AvatarStorage by inject()
@@ -253,6 +253,29 @@ class UserServiceTest : KoinTest, FunSpec(){
                 val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
                 shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
                     userService.getUserAvatar(user.phone).getOrThrow()
+                }
+            }
+        }
+        context("delete avatar"){
+            test("should delete avatar"){
+                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
+                val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
+                val updatedUser = userService.updateUserAvatar(
+                    user = user,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { testAvatarData },
+                ).getOrThrow()
+                shouldNotThrowAny {
+                    userService.deleteUserAvatar(updatedUser).getOrThrow()
+                }
+                shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
+                    userService.getUserAvatar(user.phone).getOrThrow()
+                }
+            }
+            test("should return UserAvatarNotFound if user hasn't avatar"){
+                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
+                shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
+                    userService.deleteUserAvatar(user).getOrThrow()
                 }
             }
         }

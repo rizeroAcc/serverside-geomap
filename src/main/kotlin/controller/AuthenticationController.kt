@@ -5,14 +5,14 @@ package com.mapprjct.controller
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.exceptions.user.UserValidationException
-import com.mapprjct.model.request.SignInRequest
-import com.mapprjct.model.request.toUserCredentialsDTO
+import com.mapprjct.model.request.auth.SignInRequest
+import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession
 import com.mapprjct.model.response.error.ErrorResponse
-import com.mapprjct.model.response.SignInResponse
-import com.mapprjct.model.request.RegistrationRequest
-import com.mapprjct.model.request.toUserCredentialsDto
-import com.mapprjct.model.response.RegistrationResponse
+import com.mapprjct.model.response.auth.SignInResponse
+import com.mapprjct.model.request.auth.RegistrationRequest
+import com.mapprjct.model.request.auth.toUserCredentialsDto
+import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -67,7 +67,6 @@ private fun Routing.signInRoute(
             expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
         )
         call.sessions.set("Authorization" , session)
-        println("before respond")
         call.respond(
             status = HttpStatusCode.OK,
             message = SignInResponse(
@@ -75,7 +74,6 @@ private fun Routing.signInRoute(
                 tokenExpiration = session.expireAt
             )
         )
-        println("Successfully logged in")
     }
 }
 

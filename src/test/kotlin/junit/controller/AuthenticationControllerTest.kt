@@ -3,9 +3,9 @@ package com.mapprjct.junit.controller
 import com.mapprjct.ApplicationStartMode
 import com.mapprjct.database.tables.*
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.request.RegistrationRequest
-import com.mapprjct.model.request.SignInRequest
-import com.mapprjct.model.response.RegistrationResponse
+import com.mapprjct.model.request.auth.RegistrationRequest
+import com.mapprjct.model.request.auth.SignInRequest
+import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.module
 import com.mapprjct.service.UserService
 import io.ktor.client.call.*

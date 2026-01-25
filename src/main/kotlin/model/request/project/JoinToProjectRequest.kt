@@ -1,4 +1,4 @@
-package com.mapprjct.model.request
+package com.mapprjct.model.request.project
 
 import kotlinx.serialization.Serializable
 

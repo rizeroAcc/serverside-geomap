@@ -21,7 +21,7 @@ inline fun <reified T : Any> ApplicationTestBuilder.getBean() : T {
 fun buildMultipartFromFile(
     path : String,
     filename : String? = null,
-    type : String? = null
+    type : String? = null,
 ) : MultiPartFormDataContent {
     val avatarData = getTestResourceAsChannel(path)
     val fileName = filename ?: path.substringAfterLast('/')

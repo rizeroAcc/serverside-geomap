@@ -61,6 +61,14 @@ class FileAvatarStorage(
         }
     }
 
+    override suspend fun deleteAvatar(avatarFilename: String): Result<Unit> {
+        val avatarFile = File(uploadDir, avatarFilename)
+        return runCatching {
+            if (!avatarFile.exists()) throw FileNotFoundException()
+            if (!avatarFile.delete()) throw IOException()
+        }
+    }
+
     override suspend fun getUploadDirectory(): File {
         return uploadDir
     }

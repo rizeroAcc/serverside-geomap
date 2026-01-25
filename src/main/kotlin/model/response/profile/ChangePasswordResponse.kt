@@ -1,4 +1,4 @@
-package com.mapprjct.model.response
+package com.mapprjct.model.response.profile
 
 import kotlinx.serialization.Serializable
 

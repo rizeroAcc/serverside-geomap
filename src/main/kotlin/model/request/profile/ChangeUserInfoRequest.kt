@@ -1,4 +1,4 @@
-package com.mapprjct.model.request
+package com.mapprjct.model.request.profile
 
 import com.mapprjct.model.dto.User
 import kotlinx.serialization.Serializable

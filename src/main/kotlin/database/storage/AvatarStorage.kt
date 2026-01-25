@@ -15,5 +15,10 @@ interface AvatarStorage {
      * @throws java.io.FileNotFoundException - if avatar not found
      * */
     suspend fun getUserAvatar(avatarFilename : String) : Result<File>
+    /**
+     * @throws java.io.FileNotFoundException - if avatar not found
+     * @throws java.io.IOException - if filesystem error
+     * */
+    suspend fun deleteAvatar(avatarFilename : String) : Result<Unit>
     suspend fun getUploadDirectory() : File
 }

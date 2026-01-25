@@ -3,9 +3,9 @@ package com.mapprjct.controller
 import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
 import com.mapprjct.model.APISession
 import com.mapprjct.service.ProjectService
-import com.mapprjct.model.request.CreateProjectRequest
-import com.mapprjct.model.request.InviteUserRequest
-import com.mapprjct.model.request.JoinToProjectRequest
+import com.mapprjct.model.request.project.CreateProjectRequest
+import com.mapprjct.model.request.project.InviteUserRequest
+import com.mapprjct.model.request.project.JoinToProjectRequest
 import com.mapprjct.model.response.CreateInvitationResponse
 import com.mapprjct.model.response.GetAllUserProjectsResponse
 import com.mapprjct.service.InvitationService

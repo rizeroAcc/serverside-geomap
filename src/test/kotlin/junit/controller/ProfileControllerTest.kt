@@ -3,10 +3,10 @@ package com.mapprjct.junit.controller
 import com.mapprjct.*
 import com.mapprjct.database.tables.*
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.request.RegistrationRequest
-import com.mapprjct.model.request.SignInRequest
-import com.mapprjct.model.response.AvatarUpdateResponse
-import com.mapprjct.model.response.RegistrationResponse
+import com.mapprjct.model.request.auth.RegistrationRequest
+import com.mapprjct.model.request.auth.SignInRequest
+import com.mapprjct.model.response.profile.AvatarUpdateResponse
+import com.mapprjct.model.response.auth.RegistrationResponse
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*

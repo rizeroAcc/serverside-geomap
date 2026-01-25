@@ -1,13 +1,10 @@
 package com.mapprjct.kotest.controller
 
-import com.mapprjct.ApplicationStartMode
 import com.mapprjct.builders.createRegistrationRequest
 import com.mapprjct.builders.createTestUser
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.request.RegistrationRequest
-import com.mapprjct.model.request.SignInRequest
-import com.mapprjct.model.response.RegistrationResponse
-import com.mapprjct.module
+import com.mapprjct.model.request.auth.SignInRequest
+import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
 import com.mapprjct.testKtorApp
 import io.kotest.assertions.ktor.client.shouldHaveStatus
@@ -18,21 +15,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
 import io.kotest.matchers.shouldBe
 import io.ktor.client.call.body
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.config.ApplicationConfig
 import io.ktor.server.sessions.SessionStorage
-import io.ktor.server.testing.ApplicationTestBuilder
-import io.ktor.server.testing.testApplication
-import org.assertj.core.api.Assertions.assertThat
 import org.koin.ktor.ext.getKoin
-import org.testcontainers.containers.JdbcDatabaseContainer
 import org.testcontainers.containers.PostgreSQLContainer
 
 class AuthenticationControllerTest : FunSpec() {
