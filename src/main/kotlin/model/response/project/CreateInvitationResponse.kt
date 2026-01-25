@@ -1,8 +1,7 @@
-package com.mapprjct.model.response
+package com.mapprjct.model.response.project
 
 import com.mapprjct.model.Invitation
 import kotlinx.serialization.Serializable
-import java.util.UUID
 
 @Serializable
 data class CreateInvitationResponse(

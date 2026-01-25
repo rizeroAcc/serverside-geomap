@@ -1,4 +1,4 @@
-package com.mapprjct.model.response
+package com.mapprjct.model.response.project
 
 import com.mapprjct.model.dto.ProjectWithRole
 import kotlinx.serialization.Serializable

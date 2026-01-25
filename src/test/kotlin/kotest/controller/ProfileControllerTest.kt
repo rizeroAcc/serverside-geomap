@@ -271,7 +271,7 @@ class ProfileControllerTest : FunSpec() {
                 test("should respond bad request if old password does not match"){
                     val oldUserPassword = "oldUserPassword"
                     val wrongPass = "wrongUserPassword"
-                    val (user, userToken) = createRegisterAndLoginUser(password = oldUserPassword)
+                    val (user, userToken) = createRegisterAndLoginUser(phone = "89203415678",password = oldUserPassword)
                     val changePasswordRequest = ChangePasswordRequest(
                         oldPassword = wrongPass,
                         newPassword = wrongPass

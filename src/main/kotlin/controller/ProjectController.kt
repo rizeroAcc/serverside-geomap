@@ -1,13 +1,17 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.repositoryImpl.ProjectRepositoryImpl
+import com.mapprjct.exceptions.project.ProjectDMLException
+import com.mapprjct.exceptions.project.ProjectValidationException
+import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.APISession
 import com.mapprjct.service.ProjectService
 import com.mapprjct.model.request.project.CreateProjectRequest
 import com.mapprjct.model.request.project.InviteUserRequest
 import com.mapprjct.model.request.project.JoinToProjectRequest
-import com.mapprjct.model.response.CreateInvitationResponse
-import com.mapprjct.model.response.GetAllUserProjectsResponse
+import com.mapprjct.model.response.project.CreateInvitationResponse
+import com.mapprjct.model.response.project.GetAllUserProjectsResponse
+import com.mapprjct.model.response.project.GetProjectResponse
 import com.mapprjct.service.InvitationService
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -16,10 +20,13 @@ import io.ktor.server.auth.principal
 import io.ktor.server.plugins.NotFoundException
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.koin.ktor.ext.inject
 
 fun Application.configureProjectsController() {
@@ -29,23 +36,9 @@ fun Application.configureProjectsController() {
     routing() {
         authenticate("auth-session") {
             route("/projects") {
-                post("/create") {
-                    val session = call.principal<APISession>()!!
-                    val userPhone = session.phone
-                    val request = call.receive<CreateProjectRequest>()
-                    val newProject = projectService.createProject(
-                        creatorPhone = userPhone,
-                        projectName = request.projectName
-                    ).fold(
-                        onSuccess = { result->
-                            call.respond(status = HttpStatusCode.Created, message = result)
-                                    },
-                        onFailure = { error-> call.respond(HttpStatusCode.InternalServerError,error ) }
-                    )
-                    call.respond(status = HttpStatusCode.Created, message = newProject)
-
-                }
-                get("/") {
+                createProject(projectService)
+                getProject(projectService)
+                get("/all") {
                     val session = call.principal<APISession>()!!
                     val userPhone = session.phone
                     projectService.getAllUserProjects(userPhone = userPhone).fold(
@@ -105,6 +98,45 @@ fun Application.configureProjectsController() {
                 }
             }
         }
-
+    }
+}
+fun Route.createProject(projectService: ProjectService) {
+    post("") {
+        val session = call.principal<APISession>()!!
+        val request = call.receive<CreateProjectRequest>()
+        val newProject = projectService.createProject(
+            creatorPhone = session.phone,
+            projectName = request.projectName
+        ).fold(
+            onSuccess = { result-> call.respond(status = HttpStatusCode.Created, message = result) },
+            onFailure = { error->
+                when (error) {
+                    is ProjectValidationException.EmptyProjectName ->respondBadRequest("Project name is empty")
+                    is ExposedSQLException -> logDatabaseErrorAndRespondISE(error)
+                    else -> logErrorAndRespondISE(error, "Unknown error")
+                }
+            }
+        )
+    }
+}
+fun Route.getProject(projectService: ProjectService) {
+    get("/{id}"){
+        val projectId = call.pathParameters["id"]
+        if(projectId == null){
+            respondBadRequest("Missing project id")
+            return@get
+        }
+        projectService.getProject(projectId).fold(
+            onSuccess = { result->
+                call.respond(HttpStatusCode.OK, GetProjectResponse(result))
+            },
+            onFailure = { exception ->
+                when(exception) {
+                    is ProjectDMLException.ProjectNotFoundException -> call.respond(HttpStatusCode.NotFound)
+                    is ExposedSQLException -> logDatabaseErrorAndRespondISE(exception)
+                    else -> logErrorAndRespondISE(exception, "Unknown error")
+                }
+            }
+        )
     }
 }

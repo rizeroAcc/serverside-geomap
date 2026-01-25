@@ -9,6 +9,7 @@ import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectWithRole
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.util.UUID
@@ -50,16 +51,31 @@ class ProjectService(
         }
     }
     /**
-     * [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
-     *
-     * [UserDMLExceptions.UserNotFoundException] - if user doesn't exists
+     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
+     * @throws ProjectValidationException.EmptyProjectName - if project name empty
+     * @throws UserDMLExceptions.UserNotFoundException - if user doesn't exists
      * */
     suspend fun createProject(creatorPhone : String, projectName : String) : Result<Project>{
         return runCatching {
+            if(projectName.isBlank()){
+                throw ProjectValidationException.EmptyProjectName()
+            }
             suspendTransaction(database) {
                 userRepository.getUser(creatorPhone)
                     ?: throw UserDMLExceptions.UserNotFoundException(creatorPhone)
                 projectRepository.insertProject(creatorPhone, projectName)
+            }
+        }.recover { exception ->
+            return when(exception){
+                is ExposedSQLException ->{
+                    if (exception.sqlState == "23514"){
+                       Result.failure(ProjectValidationException.EmptyProjectName())
+                    }else{
+                        Result.failure(exception)
+                    }
+                }else -> {
+                    Result.failure(exception)
+                }
             }
         }
     }
