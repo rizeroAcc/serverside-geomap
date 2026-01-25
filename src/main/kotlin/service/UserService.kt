@@ -71,11 +71,15 @@ class UserService(
     /**
      * Update user info **without phone**
      * @return User - if update success
+     * @throws UserValidationException - if new user info invalid
      * @throws UserDMLExceptions.UserNotFoundException - if user not found
      * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
     suspend fun updateUser(user : User) : Result<User?>{
         return runCatching {
+            if (user.username.isBlank()) {
+                throw UserValidationException.InvalidUsername()
+            }
             suspendTransaction {
                 userRepository.updateUser(user) ?: throw UserDMLExceptions.UserNotFoundException(user.phone)
             }

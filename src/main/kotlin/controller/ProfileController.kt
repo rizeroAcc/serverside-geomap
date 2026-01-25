@@ -2,6 +2,7 @@ package com.mapprjct.controller
 
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
+import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.APISession
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
@@ -11,6 +12,7 @@ import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.profile.ChangePasswordResponse
 import com.mapprjct.model.response.error.ErrorResponse
 import com.mapprjct.model.response.profile.DeleteAvatarResponse
+import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -57,7 +59,79 @@ fun Application.configureProfileController() {
     }
 }
 
+private fun Route.updateProfileAvatar(userService: UserService){
+    post("/avatar"){
+        val session = call.principal<APISession>()!!
+        val user = userService.getUser(session.phone).getOrElse { error->
+            logDatabaseErrorAndRespondISE(error as ExposedSQLException)
+            return@post
+        }
 
+        runCatching {
+            val multipart = call.receiveMultipart()
+            multipart.forEachPart { part ->
+                when (part) {
+                    is PartData.FileItem -> {
+                        val receivedFileName = part.originalFileName
+                        if(receivedFileName.isNullOrBlank()){
+                            throw IllegalArgumentException("Empty file name")
+                        }
+
+
+                        val updatedUser = userService.updateUserAvatar(user,receivedFileName, part.provider).getOrThrow()
+                        call.respond(
+                            HttpStatusCode.Accepted,
+                            AvatarUpdateResponse(updatedUser)
+                        )
+                    }
+                    else -> {}
+                }
+                part.dispose()
+            }
+        }.onFailure { exception->
+            when (exception) {
+                is ContentTransformationException -> respondBadRequest("Request have invalid multipart format")
+                is IllegalArgumentException -> respondBadRequest(exception.message!!)
+                is IOException -> {
+                    call.respond(
+                        status = HttpStatusCode.ServiceUnavailable,
+                        message = ErrorResponse.fromText("Server file system busy try later")
+                    )
+                }
+                else ->logErrorAndRespondISE(exception, "Unexpected error, see logs for details")
+            }
+        }
+    }
+}
+
+private fun Route.getProfileAvatar(userService : UserService) {
+    get("/avatar") {
+        val session = call.principal<APISession>()!!
+        val user = userService.getUser(session.phone).getOrElse {
+            logErrorAndRespondISE(it, "User not found")
+            return@get
+        }
+        userService.getUserAvatar(user.phone).fold(
+            onSuccess = { avatar->
+                call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
+                call.respondFile(avatar)
+            },
+            onFailure = { exception->
+                when (exception) {
+                    is FileNotFoundException -> call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse.fromText("Avatar corrupted. Please contact with administrators to recover it, or reupload it")
+                    )
+                    is UserDMLExceptions.UserAvatarNotFoundException -> call.respond(
+                        status = HttpStatusCode.NoContent,
+                        message = ErrorResponse.fromText("User hasn't avatar")
+                    )
+                }
+            }
+        )
+
+    }
+}
 
 private fun Route.deleteProfileAvatar(userService: UserService) {
     delete("/avatar") {
@@ -81,17 +155,18 @@ private fun Route.deleteProfileAvatar(userService: UserService) {
 }
 
 private fun Route.updateUserInfo(userService: UserService) {
-    patch("/"){
+    patch(""){
         val newUserInfo = call.receive<ChangeUserInfoRequest>().user
         userService.updateUser(newUserInfo).fold(
-            onSuccess = { result->
-                call.respond(status = HttpStatusCode.Accepted, message = result!!)
+            onSuccess = { updatedUser->
+                call.respond(status = HttpStatusCode.Accepted, message = UpdateUserInfoResponse(updatedUser!!))
             },
             onFailure = { exception ->
                 when(exception){
                     is UserDMLExceptions.UserNotFoundException -> call.respond(
                         HttpStatusCode.NotFound, ErrorResponse.fromText("Incorrect user phone")
                     )
+                    is UserValidationException -> respondBadRequest(exception.shortMessage)
                     is ExposedSQLException -> logDatabaseErrorAndRespondISE(exception)
                 }
             }
@@ -135,80 +210,6 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
                 else -> logErrorAndRespondISE(error,"Unexpected error")
             }
         })
-    }
-}
-
-private fun Route.getProfileAvatar(userService : UserService) {
-    get("/avatar") {
-        val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse {
-            logErrorAndRespondISE(it, "User not found")
-            return@get
-        }
-        userService.getUserAvatar(user.phone).fold(
-            onSuccess = { avatar->
-                call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
-                call.respondFile(avatar)
-            },
-            onFailure = { exception->
-                when (exception) {
-                    is FileNotFoundException -> call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse.fromText("Avatar corrupted. Please contact with administrators to recover it, or reupload it")
-                    )
-                    is UserDMLExceptions.UserAvatarNotFoundException -> call.respond(
-                        status = HttpStatusCode.NoContent,
-                        message = ErrorResponse.fromText("User hasn't avatar")
-                    )
-                }
-            }
-        )
-
-    }
-}
-
-private fun Route.updateProfileAvatar(userService: UserService){
-    post("/avatar"){
-        val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse { error->
-            logDatabaseErrorAndRespondISE(error as ExposedSQLException)
-            return@post
-        }
-
-        runCatching {
-            val multipart = call.receiveMultipart()
-            multipart.forEachPart { part ->
-                when (part) {
-                    is PartData.FileItem -> {
-                        val receivedFileName = part.originalFileName
-                        if(receivedFileName.isNullOrBlank()){
-                            throw IllegalArgumentException("Empty file name")
-                        }
-
-
-                        val updatedUser = userService.updateUserAvatar(user,receivedFileName, part.provider).getOrThrow()
-                        call.respond(
-                            HttpStatusCode.Accepted,
-                            AvatarUpdateResponse(updatedUser)
-                        )
-                    }
-                    else -> {}
-                }
-                part.dispose()
-            }
-        }.onFailure { exception->
-            when (exception) {
-                is ContentTransformationException -> respondBadRequest("Request have invalid multipart format")
-                is IllegalArgumentException -> respondBadRequest(exception.message!!)
-                is IOException -> {
-                    call.respond(
-                        status = HttpStatusCode.ServiceUnavailable,
-                        message = ErrorResponse.fromText("Server file system busy try later")
-                    )
-                }
-                else ->logErrorAndRespondISE(exception, "Unexpected error, see logs for details")
-            }
-        }
     }
 }
 

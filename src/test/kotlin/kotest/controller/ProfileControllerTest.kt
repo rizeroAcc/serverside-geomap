@@ -8,10 +8,12 @@ import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.profile.ChangePasswordRequest
+import com.mapprjct.model.request.profile.ChangeUserInfoRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.model.response.error.ErrorResponse
 import com.mapprjct.model.response.profile.DeleteAvatarResponse
+import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
 import io.kotest.assertions.ktor.client.shouldHaveContentType
 import io.kotest.assertions.ktor.client.shouldHaveStatus
@@ -268,8 +270,52 @@ class ProfileControllerTest : FunSpec() {
                 }
                 test("should respond bad request if old password does not match"){
                     val oldUserPassword = "oldUserPassword"
+                    val wrongPass = "wrongUserPassword"
                     val (user, userToken) = createRegisterAndLoginUser(password = oldUserPassword)
-                    //todo
+                    val changePasswordRequest = ChangePasswordRequest(
+                        oldPassword = wrongPass,
+                        newPassword = wrongPass
+                    )
+                    client.post("/user/changePassword") {
+                        headers.append("Authorization", userToken)
+                        setBody(changePasswordRequest)
+                    } shouldHaveStatus HttpStatusCode.BadRequest
+                }
+            }
+        }
+        context("update profile info"){
+            testKtorApp(postgres){
+                val userService = getBean<UserService>()
+                val (user,token) = createRegisterAndLoginUser()
+                test("should update user profile"){
+                    val changeUserInfoRequest = ChangeUserInfoRequest(
+                        user = user.copy(username = "updated user name"),
+                    )
+                    val response = client.patch("/user"){
+                        headers.append("Authorization", token)
+                        setBody(changeUserInfoRequest)
+                    }
+                    response shouldHaveStatus HttpStatusCode.Accepted
+                    val newUserInfo = response.body<UpdateUserInfoResponse>().user
+                    userService.getUser(user.phone).getOrThrow() shouldBe newUserInfo
+                }
+                test("should respond bad request if new user info invalid"){
+                    val changeUserInfoRequest = ChangeUserInfoRequest(
+                        user = user.copy(username = ""),
+                    )
+                    client.patch("/user"){
+                        headers.append("Authorization", token)
+                        setBody(changeUserInfoRequest)
+                    } shouldHaveStatus HttpStatusCode.BadRequest
+                }
+                test("should respond not found if user phone not registered"){
+                    val changeUserInfoRequest = ChangeUserInfoRequest(
+                        user = user.copy(phone = "89038518685")
+                    )
+                    client.patch("/user"){
+                        headers.append("Authorization", token)
+                        setBody(changeUserInfoRequest)
+                    } shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
