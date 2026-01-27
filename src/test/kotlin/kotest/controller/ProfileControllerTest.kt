@@ -2,7 +2,6 @@ package com.mapprjct.kotest.controller
 
 import com.mapprjct.*
 import com.mapprjct.builders.createCredentials
-import com.mapprjct.database.storage.impl.FileAvatarStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
@@ -11,8 +10,7 @@ import com.mapprjct.model.request.profile.ChangePasswordRequest
 import com.mapprjct.model.request.profile.ChangeUserInfoRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.auth.RegistrationResponse
-import com.mapprjct.model.response.error.ErrorResponse
-import com.mapprjct.model.response.profile.DeleteAvatarResponse
+import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
 import io.kotest.assertions.ktor.client.shouldHaveContentType

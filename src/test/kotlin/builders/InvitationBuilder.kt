@@ -4,7 +4,7 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import com.mapprjct.model.dto.User
 import java.util.UUID
 import kotlin.time.Clock

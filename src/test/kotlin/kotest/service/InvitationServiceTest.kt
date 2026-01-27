@@ -11,9 +11,9 @@ import com.mapprjct.di.serviceModule
 import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.invitation.InvitationValidationException
 import com.mapprjct.exceptions.project.ProjectDMLException
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import com.mapprjct.model.dto.UserCredentials
-import com.mapprjct.model.dto.asRole
+import com.mapprjct.model.asRole
 import com.mapprjct.service.InvitationService
 import com.mapprjct.service.ProjectService
 import com.mapprjct.service.UserService

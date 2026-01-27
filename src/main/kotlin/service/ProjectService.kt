@@ -12,8 +12,8 @@ import com.mapprjct.model.dto.ProjectWithRole
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.postgresql.util.PSQLState
 import java.util.UUID
-import kotlin.Result.Companion.success
 
 class ProjectService(
     val database: Database,
@@ -68,7 +68,7 @@ class ProjectService(
         }.recover { exception ->
             return when(exception){
                 is ExposedSQLException ->{
-                    if (exception.sqlState == "23514"){
+                    if (exception.sqlState == PSQLState.CHECK_VIOLATION.state){
                        Result.failure(ProjectValidationException.EmptyProjectName())
                     }else{
                         Result.failure(exception)
@@ -88,34 +88,37 @@ class ProjectService(
     suspend fun joinProject(userPhone: String, invitationCode : String) : Result<Project>{
         return runCatching {
             val code = UUID.fromString(invitationCode)
-            return suspendTransaction(database) {
-                val invitation = invitationRepository.getInvitation(
-                    code = code
-                ) ?: throw InvitationDMLExceptions.InvitationNotFoundException(invitationCode)
+            suspendTransaction(database) {
+                val invitation = invitationRepository.getInvitation(code = code)
+                    ?: throw InvitationDMLExceptions.InvitationNotFoundException(invitationCode)
 
                 if (userPhone == invitation.inviterPhone){
-                    throw ProjectValidationException.UserAlreadyProjectMember(
-                        invitation.projectID.toString()
-                    )
+                    throw ProjectValidationException.UserAlreadyProjectMember(invitation.projectID.toString())
                 }
 
                 val project = projectRepository.getProjectById(invitation.projectID)
                     ?: throw ProjectDMLException.ProjectNotFoundException(invitation.projectID.toString())
 
-                val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
-                    it.project.projectID
-                }.contains(invitation.projectID.toString())
-
-                if (userAlreadyStayInProject){
-                    throw ProjectValidationException.UserAlreadyProjectMember(invitation.projectID.toString())
-                }
-
+                requireUserNotStayInProject(userPhone,invitation.projectID.toString())
 
                 projectRepository.addMemberToProject(userPhone, project = project, role = invitation.role)
                 invitationRepository.deleteInvitation(invitation.inviteCode)
-                success(project.copy(membersCount = project.membersCount + 1))
+                project.copy(membersCount = project.membersCount + 1)
             }
+        }
+    }
 
+    /**
+     * --Must be called inside transaction--
+     * @throws ProjectValidationException.UserAlreadyProjectMember - if user already stay in project
+     * */
+    private suspend fun requireUserNotStayInProject(userPhone: String, projectID : String){
+        val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
+            it.project.projectID
+        }.contains(projectID)
+
+        if (userAlreadyStayInProject){
+            throw ProjectValidationException.UserAlreadyProjectMember(projectID)
         }
     }
 }

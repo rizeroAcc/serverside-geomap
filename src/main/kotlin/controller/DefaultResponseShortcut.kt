@@ -1,6 +1,6 @@
 package com.mapprjct.controller
 
-import com.mapprjct.model.response.error.ErrorResponse
+import com.mapprjct.model.ErrorResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 import io.ktor.server.response.respond

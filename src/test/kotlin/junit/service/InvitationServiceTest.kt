@@ -13,9 +13,9 @@ import com.mapprjct.di.storageModule
 import com.mapprjct.exceptions.invitation.InvitationValidationException
 import com.mapprjct.exceptions.project.ProjectDMLException
 import com.mapprjct.model.Invitation
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.dto.asRole
+import com.mapprjct.model.asRole
 import com.mapprjct.service.InvitationService
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -193,7 +193,7 @@ class InvitationServiceTest : KoinTest {
         @Test
         fun `should return IllegalArgumentException if user have over 5 invitations`() = runTest {
             suspendTransaction {
-                val user = createUser(phone ="89036559989", name ="test",password = "test")
+                val user = createUser(phone ="89036559989", name ="test",password = "testPass")
                 val project = projectRepository.insertProject(user.phone,"test")
                 for (i in 1..5){
                     invitationService.createInvitation(

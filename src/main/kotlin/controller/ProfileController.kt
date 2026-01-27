@@ -10,7 +10,7 @@ import com.mapprjct.model.request.profile.ChangePasswordRequest
 import com.mapprjct.model.request.profile.ChangeUserInfoRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.profile.ChangePasswordResponse
-import com.mapprjct.model.response.error.ErrorResponse
+import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.profile.DeleteAvatarResponse
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import io.ktor.http.HttpHeaders

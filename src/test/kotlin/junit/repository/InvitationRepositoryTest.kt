@@ -14,7 +14,7 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import com.mapprjct.model.dto.User
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat

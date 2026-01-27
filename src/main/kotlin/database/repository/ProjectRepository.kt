@@ -2,7 +2,7 @@ package com.mapprjct.database.repository
 
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectWithRole
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import java.util.UUID
 
 interface ProjectRepository {

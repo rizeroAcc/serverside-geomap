@@ -7,6 +7,7 @@ import com.mapprjct.database.storage.AvatarStorage
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.exceptions.user.UserValidationException
+import com.mapprjct.model.exceptions.UserCredentialsValidationException
 import io.ktor.utils.io.ByteReadChannel
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -27,7 +28,14 @@ class UserService(
      * @throws[org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
      * */
     suspend fun createUser(userCredentials : UserCredentials, username : String) : Result<User> {
-        userCredentials.validate().onFailure { return failure(it) }
+        userCredentials.validate().onFailure {
+            return when (val exception = it as UserCredentialsValidationException) {
+                is UserCredentialsValidationException.InvalidPasswordLength ->
+                    failure<User>(UserValidationException.InvalidPasswordLength(exception.minLength))
+                is UserCredentialsValidationException.InvalidPhone ->
+                    failure<User>(UserValidationException.InvalidPhoneFormat())
+            }
+        }
         if (username.isBlank()){
             return failure(UserValidationException.InvalidUsername())
         }
@@ -86,7 +94,7 @@ class UserService(
         }
     }
     /**
-     * @return [UserCredentials] - if update success
+     * @return [model.dto.UserCredentials] - if update success
      * @throws UserDMLExceptions.UserNotFoundException - if user not found
      * @throws IllegalArgumentException - if old password wrong
      * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
@@ -146,7 +154,7 @@ class UserService(
                 throw UserDMLExceptions.UserNotFoundException(phone = userPhone)
             }
             user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
-            avatarStorage.getUserAvatar(user.avatarFilename).getOrThrow()
+            avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()
         }
     }
     /**
@@ -159,7 +167,7 @@ class UserService(
             user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
             suspendTransaction(database) {
                 updateUser(user.copy(avatarFilename = null))
-                avatarStorage.deleteAvatar(user.avatarFilename).getOrThrow()
+                avatarStorage.deleteAvatar(user.avatarFilename!!).getOrThrow()
             }
         }
     }
@@ -167,5 +175,4 @@ class UserService(
     private fun fileIsImage(filename : String) : Boolean {
         return filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
     }
-
 }

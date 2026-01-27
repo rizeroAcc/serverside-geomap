@@ -16,7 +16,7 @@ import com.mapprjct.exceptions.project.ProjectValidationException
 import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.Role
+import com.mapprjct.model.Role
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.ProjectService

@@ -2,7 +2,7 @@ package com.mapprjct.database.daoimpl
 
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.tables.InviteCodeTable
-import com.mapprjct.model.dto.asRole
+import com.mapprjct.model.asRole
 import com.mapprjct.model.Invitation
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere

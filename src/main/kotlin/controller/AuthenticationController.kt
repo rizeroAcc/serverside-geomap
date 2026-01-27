@@ -8,12 +8,14 @@ import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession
-import com.mapprjct.model.response.error.ErrorResponse
+import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.auth.SignInResponse
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDto
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
+import com.mapprjct.model.request.auth.toUserCredentialsDTO
+import com.mapprjct.model.request.auth.toUserCredentialsDto
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
@@ -44,7 +46,7 @@ private fun Routing.signInRoute(
     sessionStorage : SessionStorage,
 ) {
     post("/signin") {
-        val request = call.receive<SignInRequest>()
+        val request = call.receive<com.mapprjct.model.request.auth.SignInRequest>()
         val credentialsValid = userService.validateCredentials(
             request.toUserCredentialsDTO()
         ).getOrElse { error->
@@ -69,7 +71,7 @@ private fun Routing.signInRoute(
         call.sessions.set("Authorization" , session)
         call.respond(
             status = HttpStatusCode.OK,
-            message = SignInResponse(
+            message = _root_ide_package_.com.mapprjct.model.response.auth.SignInResponse(
                 user = user,
                 tokenExpiration = session.expireAt
             )
@@ -97,7 +99,7 @@ private fun Routing.logOutRoute(sessionStorage : SessionStorage) {
 
 private fun Routing.registrationRoute(userService : UserService){
     post("/register"){
-        val registrationRequest = call.receive<RegistrationRequest>()
+        val registrationRequest = call.receive<com.mapprjct.model.request.auth.RegistrationRequest>()
         val userCredentials = registrationRequest.toUserCredentialsDto()
         val username = registrationRequest.username
         val registrationResult = userService.createUser(
@@ -106,7 +108,9 @@ private fun Routing.registrationRoute(userService : UserService){
         )
         registrationResult.fold(
             onSuccess = { user->
-                call.respond(HttpStatusCode.Created, RegistrationResponse(user))
+                call.respond(HttpStatusCode.Created,
+                    _root_ide_package_.com.mapprjct.model.response.auth.RegistrationResponse(user)
+                )
             },
             onFailure = { error->
                 when(error){
