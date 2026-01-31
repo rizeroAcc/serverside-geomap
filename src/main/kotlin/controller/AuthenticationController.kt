@@ -46,7 +46,7 @@ private fun Routing.signInRoute(
     sessionStorage : SessionStorage,
 ) {
     post("/signin") {
-        val request = call.receive<com.mapprjct.model.request.auth.SignInRequest>()
+        val request = call.receive<SignInRequest>()
         val credentialsValid = userService.validateCredentials(
             request.toUserCredentialsDTO()
         ).getOrElse { error->
@@ -71,7 +71,7 @@ private fun Routing.signInRoute(
         call.sessions.set("Authorization" , session)
         call.respond(
             status = HttpStatusCode.OK,
-            message = _root_ide_package_.com.mapprjct.model.response.auth.SignInResponse(
+            message = SignInResponse(
                 user = user,
                 tokenExpiration = session.expireAt
             )
@@ -109,7 +109,7 @@ private fun Routing.registrationRoute(userService : UserService){
         registrationResult.fold(
             onSuccess = { user->
                 call.respond(HttpStatusCode.Created,
-                    _root_ide_package_.com.mapprjct.model.response.auth.RegistrationResponse(user)
+                    RegistrationResponse(user)
                 )
             },
             onFailure = { error->

@@ -1,6 +1,6 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-    alias(libs.plugins.kotlin.plugin.serialization)
+    kotlin("jvm") version "2.2.20"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.2.20"
 }
 
 group = "com.server"
@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.2")
     testImplementation(kotlin("test"))
 }
 

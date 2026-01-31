@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SignInResponse(
-    val user : com.mapprjct.model.dto.User,
+    val user : User,
     val tokenExpiration : Long,
 ) {
 }
