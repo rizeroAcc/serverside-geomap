@@ -6,6 +6,7 @@ import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.response.auth.RegistrationResponse
+import com.mapprjct.model.value.Password
 import com.mapprjct.module
 import com.mapprjct.service.UserService
 import io.ktor.client.call.*
@@ -97,8 +98,8 @@ class AuthenticationControllerTest{
         @Test
         fun `should register new user in system`() = testKtorApp {
             val userService = this.application.getKoin().get<UserService>()
-            val userForRegistration = User("89036559989","kirill")
-            val userForRegistrationPassword = "testPassword"
+            val userForRegistration = User.create("89036559989","kirill")
+            val userForRegistrationPassword = Password("testPassword")
             val registrationRequest = RegistrationRequest(
                 phone = userForRegistration.phone,
                 username = userForRegistration.username,
@@ -113,14 +114,14 @@ class AuthenticationControllerTest{
             assertThat(responseBody)
                 .isEqualTo(awaitedResponse)
             //check user created
-            val savedUser = userService.getUser(userForRegistration.phone).getOrThrow()
+            val savedUser = userService.getUser(userForRegistration.phone.value).getOrThrow()
             assertThat(savedUser)
                 .isEqualTo(userForRegistration)
         }
         @Test
         fun `should respond 409 if user already registered`() = testKtorApp {
-            val userForRegistration = User("89036559989","kirill")
-            val userForRegistrationPassword = "testPassword"
+            val userForRegistration = User.create("89036559989","kirill")
+            val userForRegistrationPassword = Password("testPassword")
             val registrationRequest = RegistrationRequest(
                 phone = userForRegistration.phone,
                 username = userForRegistration.username,
@@ -140,8 +141,8 @@ class AuthenticationControllerTest{
         }
         @Test
         fun `should respond 400 if registration data invalid`() = testKtorApp {
-            val userForRegistration = User("89036559989", "")
-            val userForRegistrationPassword = "testPassword"
+            val userForRegistration = User.create("89036559989", "")
+            val userForRegistrationPassword = Password("testPassword")
             val registrationRequest = RegistrationRequest(
                 phone = userForRegistration.phone,
                 username = userForRegistration.username,
@@ -162,8 +163,8 @@ class AuthenticationControllerTest{
         @Test
         fun `should authorize user`() = testKtorApp {
             val sessionStorage = this.application.getKoin().get<SessionStorage>()
-            val user = User("89036559989","kirill")
-            val userPassword = "testPassword"
+            val user = User.create("89036559989","kirill")
+            val userPassword = Password("testPassword")
             val registrationRequest = RegistrationRequest(
                 phone = user.phone,
                 username = user.username,

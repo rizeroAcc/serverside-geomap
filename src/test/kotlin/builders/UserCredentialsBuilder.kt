@@ -2,6 +2,8 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.model.value.Password
+import com.mapprjct.model.value.RussiaPhoneNumber
 
 fun createCredentials(block : UserCredentialsBuilder.()->Unit): UserCredentials {
     return UserCredentialsBuilder().apply(block).build()
@@ -17,9 +19,9 @@ class UserCredentialsBuilder {
         if (password == null) {
             throw NullPointerException("password is null")
         }
-        return UserCredentials(phone!!, password!!)
+        return UserCredentials(RussiaPhoneNumber(phone!!), Password(password!!))
     }
     fun forUser(user: User) {
-        phone = user.phone
+        phone = user.phone.value
     }
 }

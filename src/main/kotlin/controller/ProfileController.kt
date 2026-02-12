@@ -13,6 +13,8 @@ import com.mapprjct.model.response.profile.ChangePasswordResponse
 import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.profile.DeleteAvatarResponse
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
+import com.mapprjct.model.value.Password
+import com.mapprjct.model.value.RussiaPhoneNumber
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -111,7 +113,7 @@ private fun Route.getProfileAvatar(userService : UserService) {
             logErrorAndRespondISE(it, "User not found")
             return@get
         }
-        userService.getUserAvatar(user.phone).fold(
+        userService.getUserAvatar(user.phone.value).fold(
             onSuccess = { avatar->
                 call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
                 call.respondFile(avatar)
@@ -180,8 +182,8 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
         val session = call.principal<APISession>()!!
         val request = call.receive<ChangePasswordRequest>()
         val oldCredentials = UserCredentials(
-            phone = session.phone,
-            password = request.oldPassword
+            phone = RussiaPhoneNumber(session.phone),
+            password = Password(request.oldPassword)
         )
 
         userService.updateUserPassword(

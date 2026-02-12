@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insertReturning
 import java.util.UUID
 
 class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
@@ -19,22 +20,19 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
     override suspend fun insertInvitation(
         invitation : Invitation
     ): Result<Invitation> {
-        val inviteCodeCount = InviteCodeTable.selectAll().where{
+        //todo в отдельный метод
+        val inviteCodeCount = InviteCodeTable.selectAll().where {
             InviteCodeTable.inviterPhone eq invitation.inviterPhone
             InviteCodeTable.projectID eq invitation.projectID
         }.count()
-        return if (inviteCodeCount < 5){
-            InviteCodeTable.insert {
-                it[InviteCodeTable.inviterPhone] = invitation.inviterPhone
-                it[InviteCodeTable.projectID] = invitation.projectID
-                it[InviteCodeTable.expireAt] = invitation.expireAt
-                it[InviteCodeTable.inviteCode] = invitation.inviteCode
-                it[InviteCodeTable.role] = invitation.role.toShort()
-            }
-            Result.success(invitation)
-        }else{
-            Result.failure(IllegalStateException("Attempt to register over five invitations"))
+        InviteCodeTable.insert {
+            it[InviteCodeTable.inviterPhone] = invitation.inviterPhone
+            it[InviteCodeTable.projectID] = invitation.projectID
+            it[InviteCodeTable.expireAt] = invitation.expireAt
+            it[InviteCodeTable.inviteCode] = invitation.inviteCode
+            it[InviteCodeTable.role] = invitation.role.toShort()
         }
+        return Result.success(invitation)
     }
 
     override suspend fun getInvitation(code: UUID): Invitation? {

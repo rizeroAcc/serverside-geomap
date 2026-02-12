@@ -32,7 +32,7 @@ class InvitationBuilder {
     }
 
     fun fromInviter(user : User) {
-        inviterPhone = user.phone
+        inviterPhone = user.phone.value
     }
     fun toProject(project: Project){
         projectID = UUID.fromString(project.projectID)

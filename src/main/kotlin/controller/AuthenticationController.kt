@@ -14,8 +14,6 @@ import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDto
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
-import com.mapprjct.model.request.auth.toUserCredentialsDTO
-import com.mapprjct.model.request.auth.toUserCredentialsDto
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
@@ -59,13 +57,13 @@ private fun Routing.signInRoute(
         if (!credentialsValid){
             call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
         }
-        val user = userService.getUser(request.phone).getOrElse { error->
+        val user = userService.getUser(request.phone.value).getOrElse { error->
             call.respond(HttpStatusCode.InternalServerError, ErrorResponse.loggedDatabaseException(error as ExposedSQLException))
             return@post
         }
-        (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone)
+        (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone.value)
         val session = APISession(
-            phone = user.phone ,
+            phone = user.phone.value ,
             expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
         )
         call.sessions.set("Authorization" , session)
@@ -99,12 +97,12 @@ private fun Routing.logOutRoute(sessionStorage : SessionStorage) {
 
 private fun Routing.registrationRoute(userService : UserService){
     post("/register"){
-        val registrationRequest = call.receive<com.mapprjct.model.request.auth.RegistrationRequest>()
+        val registrationRequest = call.receive<RegistrationRequest>()
         val userCredentials = registrationRequest.toUserCredentialsDto()
         val username = registrationRequest.username
         val registrationResult = userService.createUser(
             userCredentials = userCredentials,
-            username = username
+            username = username.value
         )
         registrationResult.fold(
             onSuccess = { user->

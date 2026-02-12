@@ -15,6 +15,12 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
+kotlin{
+    compilerOptions {
+        jvmToolchain(24)
+    }
+}
+
 dependencies {
     implementation(project(":shared-dto"))
     implementation(libs.koin.ktor)

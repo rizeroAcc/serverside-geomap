@@ -2,6 +2,7 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
+import com.mapprjct.model.value.Password
 import java.util.UUID
 
 fun createRegistrationRequest(block : RegistrationRequestBuilder.()->Unit ): RegistrationRequest {
@@ -23,7 +24,7 @@ class RegistrationRequestBuilder {
         return RegistrationRequest(
             phone = user?.phone ?: throw NullPointerException("User is null"),
             username = user?.username ?: throw NullPointerException("User is null"),
-            password = password
+            password = Password(password)
         )
     }
 }
