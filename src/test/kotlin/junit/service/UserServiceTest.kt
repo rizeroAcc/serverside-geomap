@@ -6,8 +6,6 @@ import com.mapprjct.database.tables.UserTable
 import com.mapprjct.di.repositoryModule
 import com.mapprjct.di.serviceModule
 import com.mapprjct.di.storageModule
-import com.mapprjct.exceptions.user.UserDMLExceptions
-import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
 import io.ktor.utils.io.*

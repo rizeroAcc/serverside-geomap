@@ -18,3 +18,21 @@ inline fun <S, F, R> Either<S, F>.fold(
     is Either.Success -> onSuccess(value)
     is Either.Failure -> onError(error)
 }
+
+inline fun<S,reified F> Result<S>.toEither(exceptionMapper : (Throwable)->F) : Either<S,F> {
+    return if(this.isSuccess) {
+        Either.success(this.getOrThrow())
+    }else{
+        val exception = exceptionOrNull()!!
+        if (exception is F) {
+            Either.failure(exception)
+        }else{
+            Either.failure(exceptionMapper(this.exceptionOrNull()!!))
+        }
+    }
+}
+
+inline fun<S,F> Either<S,F>.getOrElse(mapper: (F) -> S) : S = when(this){
+    is Either.Failure<F> -> mapper(this.error)
+    is Either.Success<S> -> this.value
+}

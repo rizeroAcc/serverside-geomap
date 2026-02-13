@@ -3,8 +3,6 @@
 package com.mapprjct.controller
 
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
-import com.mapprjct.exceptions.user.UserDMLExceptions
-import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession

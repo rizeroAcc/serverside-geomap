@@ -4,17 +4,17 @@ import com.mapprjct.AppConfig
 import com.mapprjct.model.dto.User
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.storage.AvatarStorage
-import com.mapprjct.exceptions.UserCreationException
-import com.mapprjct.exceptions.user.UserDMLExceptions
+import com.mapprjct.exceptions.user.CredentialsValidationException
+import com.mapprjct.exceptions.user.FindUserException
+import com.mapprjct.exceptions.user.UserCreationException
+import com.mapprjct.exceptions.user.UserUpdateException
 import com.mapprjct.model.dto.UserCredentials
-import com.mapprjct.exceptions.user.UserValidationException
 import com.mapprjct.model.value.Password
 import com.mapprjct.model.value.RussiaPhoneNumber
 import com.mapprjct.model.value.Username
-import com.mapprjct.utils.DatabaseDataResult
-import com.mapprjct.utils.DatabaseDataResult.Companion.databaseError
-import com.mapprjct.utils.DatabaseDataResult.Companion.domainError
-import com.mapprjct.utils.accessDatabaseData
+import com.mapprjct.utils.Either
+import com.mapprjct.utils.getOrElse
+import com.mapprjct.utils.toEither
 import io.ktor.utils.io.ByteReadChannel
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -30,73 +30,64 @@ class UserService(
     val appConfig: AppConfig,
 ) {
 
-    suspend fun createUser(userCredentials : UserCredentials, username : Username) : DatabaseDataResult<User, UserCreationException> {
-
-        return accessDatabaseData(
-            database,
-            databaseExceptionMapper = { exposedException->
-
-            }){
-            val existingUser = userRepository.getUser(userCredentials.phone)
-            if (existingUser!=null){
-                throw UserDMLExceptions.UserAlreadyExistsException(userCredentials.phone.value)
-            }
-            val user = User(phone = userCredentials.phone, username = username)
-            userRepository.insert(user = user, password = userCredentials.password)
-            user
-        }
-
+    suspend fun createUser(userCredentials : UserCredentials, username : Username) : Either<User, UserCreationException> {
         return runCatching {
-            DatabaseDataResult.success(
                 suspendTransaction(database) {
+                    val user = User(phone = userCredentials.phone, username = username)
+                    userRepository.insert(user = user, password = userCredentials.password)
+                    user
+                }
+        }.toEither { exception->
+            when(exception){
+                is ExposedSQLException -> {
+                    if (exception.sqlState == PSQLState.UNIQUE_VIOLATION.state){
+                        UserCreationException.UserAlreadyExists(userCredentials.phone.value)
+                    }else{
+                        UserCreationException.DatabaseError(exception)
+                    }
+                }
+                else -> UserCreationException.Unexpected(exception)
+            }
+        }
+    }
 
-                }
-            )
-        }.getOrElse { exception ->
-            val sqlException = exception as ExposedSQLException
-            if (sqlException.sqlState == PSQLState.UNIQUE_VIOLATION.state) {
-                domainError<UserCreationException>(UserCreationException.UserAlreadyExists())
-            }else{
-                databaseError(sqlException)
+    suspend fun validateCredentials(userCredentials : UserCredentials): Either<Boolean, CredentialsValidationException> {
+        return runCatching {
+            suspendTransaction {
+                val storedCredentials = userRepository.getUserCredentials(userCredentials.phone)
+                val isUserExistingAndPasswordCorrect = storedCredentials != null && storedCredentials.password == userCredentials.password
+                isUserExistingAndPasswordCorrect
+            }
+        }.toEither { exception->
+            when(exception){
+                is ExposedSQLException -> CredentialsValidationException.DatabaseError(exception)
+                else -> CredentialsValidationException.Unexpected(exception)
             }
         }
     }
-    /**
-     * @return [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
-     * */
-    suspend fun validateCredentials(userCredentials : UserCredentials): DatabaseDataResult<Boolean, Nothing> {
-        return runCatching {
-            DatabaseDataResult.success(
-                suspendTransaction {
-                    val existingUser = userRepository.getUserCredentials(userCredentials.phone)
-                    val isUserExistingAndPasswordCorrect = existingUser != null && existingUser.password == userCredentials.password
-                    isUserExistingAndPasswordCorrect
-                }
-            )
-        }
-    }
-    /**
-     * @return [org.jetbrains.exposed.v1.exceptions.ExposedSQLException] - if database unavailable
-     * @throws UserDMLExceptions.UserNotFoundException - if user not found
-     * */
-    suspend fun getUser(userPhone : RussiaPhoneNumber) : Result<User>{
+
+    suspend fun getUser(userPhone : RussiaPhoneNumber) : Either<User, FindUserException>{
         return runCatching {
             suspendTransaction {
-                userRepository.getUser(userPhone) ?: throw UserDMLExceptions.UserNotFoundException(userPhone.value)
+                userRepository.getUser(userPhone) ?: throw FindUserException.UserNotFound(userPhone.value)
+            }
+        }.toEither { exception->
+            when(exception){
+                is ExposedSQLException -> FindUserException.DatabaseError(exception)
+                else -> FindUserException.Unexpected(exception)
             }
         }
     }
-    /**
-     * Update user info **without phone**
-     * @return User - if update success
-     * @throws UserValidationException - if new user info invalid
-     * @throws UserDMLExceptions.UserNotFoundException - if user not found
-     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
-     * */
-    suspend fun updateUser(user : User) : Result<User?>{
+
+    suspend fun updateUser(user : User) : Either<User, UserUpdateException>{
         return runCatching {
             suspendTransaction {
-                userRepository.updateUser(user) ?: throw UserDMLExceptions.UserNotFoundException(user.phone.value)
+                userRepository.updateUser(user) ?: throw UserUpdateException.UserNotFound(user.phone.value)
+            }
+        }.toEither { error->
+            when(error){
+                is ExposedSQLException -> UserUpdateException.DatabaseError(error)
+                else -> UserUpdateException.Unexpected(error)
             }
         }
     }
@@ -106,11 +97,11 @@ class UserService(
      * @throws IllegalArgumentException - if old password wrong
      * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
      * */
-    suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : Password) : Result<UserCredentials>{
+    suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : Password) : Either<UserCredentials, UserUpdateException>{
         return runCatching {
             suspendTransaction {
                 val userCredentials = userRepository.getUserCredentials(oldCredentials.phone) ?: throw
-                    UserDMLExceptions.UserNotFoundException(
+                UserUpdateException.UserNotFound(
                         phone = oldCredentials.phone.value,
                     )
                 if (userCredentials.password != oldCredentials.password) {
@@ -121,6 +112,11 @@ class UserService(
                     password = newUserPassword
                 )
                 oldCredentials.copy(password = newUserPassword)
+            }
+        }.toEither { error->
+            when(error){
+                is ExposedSQLException -> UserUpdateException.DatabaseError(error)
+                else -> UserUpdateException.Unexpected(error)
             }
         }
     }
@@ -157,8 +153,11 @@ class UserService(
      * */
     suspend fun getUserAvatar(userPhone : RussiaPhoneNumber) : Result<File> {
         return runCatching {
-            val user = getUser(userPhone).getOrElse {
-                throw UserDMLExceptions.UserNotFoundException(phone = userPhone.value)
+            val user = getUser(userPhone).getOrElse { error->
+                when (error) {
+                    is FindUserException.UserNotFound -> throw UserDMLExceptions.UserNotFoundException(phone = userPhone.value)
+                    else -> throw error
+                }
             }
             user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
             avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()

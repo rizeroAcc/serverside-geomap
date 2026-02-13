@@ -2,7 +2,6 @@ package com.mapprjct.kotest.controller
 
 import com.mapprjct.*
 import com.mapprjct.builders.createCredentials
-import com.mapprjct.exceptions.user.UserDMLExceptions
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
