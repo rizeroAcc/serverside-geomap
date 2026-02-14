@@ -4,8 +4,11 @@ import com.mapprjct.AppConfig
 import com.mapprjct.model.dto.User
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.storage.AvatarStorage
+import com.mapprjct.exceptions.NetworkInterruptedException
 import com.mapprjct.exceptions.user.CredentialsValidationException
+import com.mapprjct.exceptions.user.FindUserAvatarException
 import com.mapprjct.exceptions.user.FindUserException
+import com.mapprjct.exceptions.user.UpdateAvatarException
 import com.mapprjct.exceptions.user.UserCreationException
 import com.mapprjct.exceptions.user.UserUpdateException
 import com.mapprjct.model.dto.UserCredentials
@@ -120,20 +123,15 @@ class UserService(
             }
         }
     }
-    /**
-     * @throws IllegalArgumentException - if file format invalid
-     * @throws IOException - if file access error
-     * @throws com.mapprjct.exceptions.NetworkInterruptedException - if channel broken
-     * @throws org.jetbrains.exposed.v1.exceptions.ExposedSQLException - if database unavailable
-     * */
+
     suspend fun updateUserAvatar(
         user: User,
         fileName : String,
         fileDataChannelProvider : suspend ()-> ByteReadChannel,
-    ) : Result<User> = runCatching {
+    ) : Either<User, UpdateAvatarException> = runCatching {
         val fileExtension = fileName.substringAfterLast('.').lowercase()
         if (!fileIsImage(fileName)) {
-            throw IllegalArgumentException("Invalid file format. Allowed formats: jpg, jpeg, png")
+            throw UpdateAvatarException.InvalidAvatarFormat()
         }
 
         val avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
@@ -142,9 +140,22 @@ class UserService(
             avatarByteProvider = fileDataChannelProvider
         ).getOrThrow()
 
-        val updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrThrow()
+        val updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrElse { exception ->
+            when(exception){
+                is UserUpdateException.DatabaseError -> throw UpdateAvatarException.DatabaseError(exception.exception)
+                is UserUpdateException.Unexpected -> throw UpdateAvatarException.Unexpected(exception)
+                is UserUpdateException.UserNotFound -> throw UpdateAvatarException.UserNotFound(exception.phone)
+            }
+        }
 
-        updatedUser!!
+        updatedUser
+    }.toEither { error->
+        when(error){
+            is IOException -> UpdateAvatarException.FilesystemUnavailable()
+            is NetworkInterruptedException -> UpdateAvatarException.ConnectionTerminated()
+            is ExposedSQLException -> UpdateAvatarException.DatabaseError(error)
+            else -> UpdateAvatarException.Unexpected(error)
+        }
     }
 
     /**
@@ -155,11 +166,11 @@ class UserService(
         return runCatching {
             val user = getUser(userPhone).getOrElse { error->
                 when (error) {
-                    is FindUserException.UserNotFound -> throw UserDMLExceptions.UserNotFoundException(phone = userPhone.value)
+                    is FindUserException.UserNotFound -> throw FindUserAvatarException.UserNotFound(userPhone.value)
                     else -> throw error
                 }
             }
-            user.avatarFilename ?: throw UserDMLExceptions.UserAvatarNotFoundException()
+            user.avatarFilename ?: throw FindUserAvatarException.UserAvatarNotFound()
             avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()
         }
     }
