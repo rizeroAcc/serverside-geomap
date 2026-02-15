@@ -158,11 +158,7 @@ class UserService(
         }
     }
 
-    /**
-     * @throws UserDMLExceptions.UserAvatarNotFoundException - if user haven't avatar
-     * @throws java.io.FileNotFoundException - if file must exist but not found
-     * */
-    suspend fun getUserAvatar(userPhone : RussiaPhoneNumber) : Result<File> {
+    suspend fun getUserAvatar(userPhone : RussiaPhoneNumber) : Either<File, FindUserAvatarException> {
         return runCatching {
             val user = getUser(userPhone).getOrElse { error->
                 when (error) {
@@ -172,6 +168,11 @@ class UserService(
             }
             user.avatarFilename ?: throw FindUserAvatarException.UserAvatarNotFound()
             avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()
+        }.toEither { error->
+            when (error){
+                is ExposedSQLException -> FindUserAvatarException.DatabaseError(error)
+                else -> FindUserAvatarException.Unexpected(error)
+            }
         }
     }
     /**
