@@ -2,10 +2,11 @@ package com.mapprjct.model
 
 import com.mapprjct.model.dto.InvitationDTO
 import com.mapprjct.model.response.project.CreateInvitationResponse
+import com.mapprjct.model.value.RussiaPhoneNumber
 import java.util.UUID
 
 data class Invitation(
-    val inviterPhone : String,
+    val inviterPhone : RussiaPhoneNumber,
     val inviteCode : UUID,
     val projectID : UUID,
     val expireAt : Long,
@@ -14,7 +15,7 @@ data class Invitation(
 
 fun Invitation.toDTO() : InvitationDTO {
     return InvitationDTO(
-        inviterPhone = inviterPhone,
+        inviterPhone = inviterPhone.value,
         inviteCode = inviteCode.toString(),
         projectID = projectID.toString(),
         expireAt = expireAt,
@@ -22,11 +23,11 @@ fun Invitation.toDTO() : InvitationDTO {
     )
 }
 /**
- * @throws IllegalArgumentException - if role or UUID convertation failed
+ * @throws IllegalArgumentException - if role, phone, or UUID convertation failed
  * */
 fun InvitationDTO.toInvitation() : Invitation {
     return Invitation(
-        inviterPhone = this.inviterPhone,
+        inviterPhone = RussiaPhoneNumber(this.inviterPhone),
         inviteCode = UUID.fromString(this.inviteCode),
         projectID = UUID.fromString(this.projectID),
         expireAt = this.expireAt,

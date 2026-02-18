@@ -1,6 +1,19 @@
 package com.mapprjct.controller
 
+import com.mapprjct.controller.util.respondBadRequest
+import com.mapprjct.controller.util.respondDatabaseError
+import com.mapprjct.controller.util.respondElementNotFound
+import com.mapprjct.controller.util.respondForbidden
+import com.mapprjct.controller.util.respondRequestTimeout
+import com.mapprjct.controller.util.respondServerError
+import com.mapprjct.controller.util.respondUnexpected
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
+import com.mapprjct.exceptions.domain.user.DeleteUserAvatarException
+import com.mapprjct.exceptions.domain.user.FindUserAvatarException
+import com.mapprjct.exceptions.domain.user.FindUserException
+import com.mapprjct.exceptions.domain.user.UpdateAvatarException
+import com.mapprjct.exceptions.domain.user.UpdateUserPasswordException
+import com.mapprjct.exceptions.domain.user.UserUpdateException
 import com.mapprjct.model.APISession
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.service.UserService
@@ -13,6 +26,8 @@ import com.mapprjct.model.response.profile.DeleteAvatarResponse
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.model.value.Password
 import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.utils.fold
+import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -62,8 +77,13 @@ fun Application.configureProfileController() {
 private fun Route.updateProfileAvatar(userService: UserService){
     post("/avatar"){
         val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse { error->
-            logDatabaseErrorAndRespondISE(error as ExposedSQLException)
+        val userPhone = RussiaPhoneNumber(session.phone)
+        val user = userService.getUser(userPhone).getOrElse { error->
+            when(error){
+                is FindUserException.Database -> respondDatabaseError()
+                is FindUserException.Unexpected -> respondUnexpected()
+                is FindUserException.UserNotFound -> respondUnexpected()
+            }
             return@post
         }
 
@@ -73,12 +93,19 @@ private fun Route.updateProfileAvatar(userService: UserService){
                 when (part) {
                     is PartData.FileItem -> {
                         val receivedFileName = part.originalFileName
-                        if(receivedFileName.isNullOrBlank()){
-                            throw IllegalArgumentException("Empty file name")
+                        if(receivedFileName.isNullOrBlank()) throw IllegalArgumentException("Empty file name")
+
+                        val updatedUser = userService.updateUserAvatar(user,receivedFileName, part.provider).getOrElse { error->
+                            when(error){
+                                is UpdateAvatarException.ConnectionTerminated -> respondRequestTimeout()
+                                is UpdateAvatarException.DatabaseError -> respondDatabaseError()
+                                is UpdateAvatarException.FilesystemUnavailable -> respondServerError("Filesystem is unavailable. Try later")
+                                is UpdateAvatarException.InvalidAvatarFormat -> respondBadRequest("Invalid avatar format. Allowed file format: ${error.allowedFormat}")
+                                is UpdateAvatarException.Unexpected -> respondUnexpected()
+                                is UpdateAvatarException.UserNotFound -> respondUnexpected()
+                            }
+                            return@forEachPart
                         }
-
-
-                        val updatedUser = userService.updateUserAvatar(user,receivedFileName, part.provider).getOrThrow()
                         call.respond(
                             HttpStatusCode.Accepted,
                             AvatarUpdateResponse(updatedUser)
@@ -92,13 +119,6 @@ private fun Route.updateProfileAvatar(userService: UserService){
             when (exception) {
                 is ContentTransformationException -> respondBadRequest("Request have invalid multipart format")
                 is IllegalArgumentException -> respondBadRequest(exception.message!!)
-                is IOException -> {
-                    call.respond(
-                        status = HttpStatusCode.ServiceUnavailable,
-                        message = ErrorResponse.fromText("Server file system busy try later")
-                    )
-                }
-                else ->logErrorAndRespondISE(exception, "Unexpected error, see logs for details")
             }
         }
     }
@@ -107,47 +127,39 @@ private fun Route.updateProfileAvatar(userService: UserService){
 private fun Route.getProfileAvatar(userService : UserService) {
     get("/avatar") {
         val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse {
-            logErrorAndRespondISE(it, "User not found")
-            return@get
-        }
-        userService.getUserAvatar(user.phone.value).fold(
+        val userPhone = RussiaPhoneNumber(session.phone)
+        userService.getUserAvatar(userPhone).fold(
             onSuccess = { avatar->
                 call.response.headers.append(HttpHeaders.CacheControl, "public, max-age=31536000")
                 call.respondFile(avatar)
             },
-            onFailure = { exception->
-                when (exception) {
-                    is FileNotFoundException -> call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse.fromText("Avatar corrupted. Please contact with administrators to recover it, or reupload it")
-                    )
-                    is UserDMLExceptions.UserAvatarNotFoundException -> call.respond(
-                        status = HttpStatusCode.NoContent,
-                        message = ErrorResponse.fromText("User hasn't avatar")
-                    )
+            onError = { error->
+                when (error) {
+                    is FindUserAvatarException.DatabaseError -> respondDatabaseError()
+                    is FindUserAvatarException.Unexpected -> respondUnexpected()
+                    is FindUserAvatarException.UserAvatarNotFound -> respondElementNotFound("User avatar not found")
+                    is FindUserAvatarException.UserNotFound -> respondUnexpected()
                 }
             }
         )
-
     }
 }
 
 private fun Route.deleteProfileAvatar(userService: UserService) {
     delete("/avatar") {
         val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse {
-            logErrorAndRespondISE(it, "User not found")
-            return@delete
-        }
-        userService.deleteUserAvatar(user).fold(
-            onSuccess = {
-                call.respond(HttpStatusCode.OK, DeleteAvatarResponse(user.copy(avatarFilename = null)))
+        val userPhone = RussiaPhoneNumber(session.phone)
+        userService.deleteUserAvatar(userPhone).fold(
+            onSuccess = { user->
+                call.respond(HttpStatusCode.OK, DeleteAvatarResponse(user))
             },
-            onFailure = { exception ->
-                when (exception) {
-                    is UserDMLExceptions.UserAvatarNotFoundException -> call.respond(HttpStatusCode.NotFound)
-                    else -> logErrorAndRespondISE(exception, "Unexpected error")
+            onError = { error ->
+                when (error) {
+                    is DeleteUserAvatarException.DatabaseError -> respondDatabaseError()
+                    is DeleteUserAvatarException.FileSystemUnavailable -> respondServerError("Filesystem is unavailable. Try later")
+                    is DeleteUserAvatarException.Unexpected -> respondUnexpected()
+                    is DeleteUserAvatarException.UserAvatarNotFound -> respondElementNotFound("User avatar not found")
+                    is DeleteUserAvatarException.UserNotFound -> respondUnexpected()
                 }
             }
         )
@@ -159,15 +171,13 @@ private fun Route.updateUserInfo(userService: UserService) {
         val newUserInfo = call.receive<ChangeUserInfoRequest>().user
         userService.updateUser(newUserInfo).fold(
             onSuccess = { updatedUser->
-                call.respond(status = HttpStatusCode.Accepted, message = UpdateUserInfoResponse(updatedUser!!))
+                call.respond(status = HttpStatusCode.Accepted, message = UpdateUserInfoResponse(updatedUser))
             },
-            onFailure = { exception ->
-                when(exception){
-                    is UserDMLExceptions.UserNotFoundException -> call.respond(
-                        HttpStatusCode.NotFound, ErrorResponse.fromText("Incorrect user phone")
-                    )
-                    is UserValidationException -> respondBadRequest(exception.shortMessage)
-                    is ExposedSQLException -> logDatabaseErrorAndRespondISE(exception)
+            onError = { error ->
+                when (error) {
+                    is UserUpdateException.DatabaseError -> respondDatabaseError()
+                    is UserUpdateException.Unexpected -> respondUnexpected()
+                    is UserUpdateException.UserNotFound -> respondUnexpected()
                 }
             }
         )
@@ -186,7 +196,7 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
 
         userService.updateUserPassword(
             oldCredentials = oldCredentials,
-            newUserPassword = request.newPassword
+            newUserPassword = Password(request.newPassword)
         ).fold(onSuccess = {
             val sessionId = call.request.headers["Authorization"]
             call.sessions.clear<APISession>()
@@ -202,12 +212,12 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
                 status = HttpStatusCode.Accepted,
                 message = ChangePasswordResponse(newSession.expireAt)
             )
-        }, onFailure = { error->
+        }, onError = { error->
             when (error) {
-                is UserDMLExceptions.UserNotFoundException -> logErrorAndRespondISE(error, "User not found. See logs")
-                is IllegalArgumentException -> respondBadRequest("Incorrect old password")
-                is ExposedSQLException -> logDatabaseErrorAndRespondISE(error)
-                else -> logErrorAndRespondISE(error,"Unexpected error")
+                is UpdateUserPasswordException.DatabaseError -> respondDatabaseError()
+                is UpdateUserPasswordException.IncorrectPassword -> respondForbidden("Wrong password")
+                is UpdateUserPasswordException.Unexpected -> respondUnexpected()
+                is UpdateUserPasswordException.UserNotFound -> respondUnexpected()
             }
         })
     }
@@ -216,14 +226,20 @@ private fun Route.changePassword(userService: UserService, sessionStorage: Sessi
 private fun Route.getProfileInfo(userService: UserService){
     get(){
         val session = call.principal<APISession>()!!
-        val user = userService.getUser(session.phone).getOrElse { error->
-            when(error){
-                is UserDMLExceptions.UserNotFoundException -> logErrorAndRespondISE(IllegalStateException(), "User not found. See logs")
-                else -> logDatabaseErrorAndRespondISE(error as ExposedSQLException)
+        val userPhone = RussiaPhoneNumber(session.phone)
+        userService.getUser(userPhone).fold(
+            onSuccess = { user->
+                call.respond(status = HttpStatusCode.OK,user)
+            }, onError = { error->
+                when (error) {
+                    is FindUserException.Database -> respondDatabaseError()
+                    is FindUserException.Unexpected -> respondUnexpected()
+                    is FindUserException.UserNotFound -> respondUnexpected()
+                }
             }
-            return@get
-        }
-        call.respond(status = HttpStatusCode.OK,user)
+        )
+
+
     }
 }
 

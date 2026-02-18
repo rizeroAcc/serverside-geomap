@@ -7,8 +7,12 @@ import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.model.value.Password
+import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.value.Username
 import com.mapprjct.module
 import com.mapprjct.service.UserService
+import com.mapprjct.utils.getOrElse
+import io.kotest.matchers.shouldBe
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
@@ -114,9 +118,7 @@ class AuthenticationControllerTest{
             assertThat(responseBody)
                 .isEqualTo(awaitedResponse)
             //check user created
-            val savedUser = userService.getUser(userForRegistration.phone.value).getOrThrow()
-            assertThat(savedUser)
-                .isEqualTo(userForRegistration)
+            val savedUser = userService.getUser(userForRegistration.phone).getOrElse { TODO() } shouldBe userForRegistration
         }
         @Test
         fun `should respond 409 if user already registered`() = testKtorApp {
@@ -196,8 +198,8 @@ class AuthenticationControllerTest{
         @Test
         fun `should respond 401 if credentials invalid`() = testKtorApp {
             val signInRequest = SignInRequest(
-                phone = "89036559989",
-                password = "userPassword"
+                phone = RussiaPhoneNumber("89036559989"),
+                password = Password("userPassword")
             )
 
             val response = client.post("/signin") {
@@ -214,8 +216,8 @@ class AuthenticationControllerTest{
         @Test
         fun `should clear user sessions`() = testKtorApp {
             val sessionStorage = this.application.getKoin().get<SessionStorage>()
-            val user = User("89036559989","kirill")
-            val userPassword = "testPassword"
+            val user = User(RussiaPhoneNumber("89036559989"), Username("kirill"))
+            val userPassword = Password("testPassword")
             val registrationRequest = RegistrationRequest(
                 phone = user.phone,
                 username = user.username,

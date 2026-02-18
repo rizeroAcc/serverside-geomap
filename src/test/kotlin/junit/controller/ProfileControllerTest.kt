@@ -7,6 +7,9 @@ import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.auth.RegistrationResponse
+import com.mapprjct.model.value.Password
+import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.value.Username
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -65,12 +68,12 @@ class ProfileControllerTest {
         username : String = "admin",
         password : String = "testPassword"
     ) : Pair<User,String>{
-        val registrationRequest = RegistrationRequest(phone, username, password)
+        val registrationRequest = RegistrationRequest(RussiaPhoneNumber(phone), Username(username), Password(password))
         val registrationResponse = client.post("/register") {
             setBody(registrationRequest)
         }.body<RegistrationResponse>()
         val signInResponse = client.post("/signin") {
-            setBody(SignInRequest(phone, password))
+            setBody(SignInRequest(RussiaPhoneNumber(phone), Password(password)))
         }
         return registrationResponse.user to signInResponse.headers["Authorization"]!!
     }

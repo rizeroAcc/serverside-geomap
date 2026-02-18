@@ -6,6 +6,7 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectWithRole
 import com.mapprjct.model.Role
+import com.mapprjct.model.value.RussiaPhoneNumber
 import com.mapprjct.utils.replaceRussiaCountryCode
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -17,7 +18,7 @@ import java.util.UUID
 
 class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
 
-    override suspend fun getAllUserProjects(userPhone: String): List<ProjectWithRole> {
+    override suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber): List<ProjectWithRole> {
         return (ProjectUsersTable innerJoin ProjectTable)
             .select(
                 ProjectTable.id,
@@ -26,7 +27,7 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
                 ProjectUsersTable.role
             )
             .where {
-                ProjectUsersTable.userPhone eq userPhone.replaceRussiaCountryCode()
+                ProjectUsersTable.userPhone eq userPhone.normalizeAsRussiaPhone()
             }
             .map { result->
                 ProjectWithRole(
@@ -39,12 +40,10 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
                 )
             }
     }
-
     override suspend fun insertProject(
-        creatorPhone: String,
+        creatorPhone: RussiaPhoneNumber,
         projectName: String
     ): Project {
-        val standardPhone = creatorPhone.replaceRussiaCountryCode()
         val newProjectUUID = UUID.randomUUID()
         ProjectTable.insert {
             it[ProjectTable.name] = projectName
@@ -53,7 +52,7 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
         }
         ProjectUsersTable.insert {
             it[ProjectUsersTable.projectId] = newProjectUUID
-            it[ProjectUsersTable.userPhone] = standardPhone
+            it[ProjectUsersTable.userPhone] = creatorPhone.normalizeAsRussiaPhone()
             it[ProjectUsersTable.role] = 1
         }
         return Project(
@@ -77,13 +76,13 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
     }
 
     override suspend fun addMemberToProject(
-        userPhone : String,
+        userPhone : RussiaPhoneNumber,
         project : Project,
         role : Role
     ) {
         val projectUUID = UUID.fromString(project.projectID)
         ProjectUsersTable.insert {
-            it[ProjectUsersTable.userPhone] = userPhone
+            it[ProjectUsersTable.userPhone] = userPhone.normalizeAsRussiaPhone()
             it[ProjectUsersTable.projectId] = projectUUID
             it[ProjectUsersTable.role] = role.toShort()
         }

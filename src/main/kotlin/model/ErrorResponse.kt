@@ -10,7 +10,7 @@ import kotlin.time.ExperimentalTime
 @Serializable
 data class ErrorResponse(
     val message : String,
-    val detailedMessage: String,
+    val details: String? = null,
     val timestamp : Long,
     val errorID : String,
 ){
@@ -19,7 +19,7 @@ data class ErrorResponse(
         fun fromAppException(exception : BaseAppException) : ErrorResponse {
             return ErrorResponse(
                 message = exception.shortMessage,
-                detailedMessage = exception.detailedMessage,
+                details = exception.detailedMessage,
                 timestamp = Clock.System.now().toEpochMilliseconds(),
                 errorID = UUID.randomUUID().toString()
             )
@@ -28,17 +28,16 @@ data class ErrorResponse(
         fun loggedDatabaseException(exception: ExposedSQLException) : ErrorResponse{
             return ErrorResponse(
                 message = "Server database error",
-                detailedMessage = "See logs for more details",
+                details = "See logs for more details",
                 timestamp = Clock.System.now().toEpochMilliseconds(),
                 errorID = UUID.randomUUID().toString()
             )
         }
 
         @OptIn(ExperimentalTime::class)
-        fun fromText(whatsHappened : String) : ErrorResponse{
+        fun fromText(message : String) : ErrorResponse{
             return ErrorResponse(
-                message = whatsHappened,
-                detailedMessage = whatsHappened,
+                message = message,
                 timestamp = Clock.System.now().toEpochMilliseconds(),
                 errorID = UUID.randomUUID().toString()
             )

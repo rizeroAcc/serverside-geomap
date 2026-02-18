@@ -2,12 +2,17 @@ package com.mapprjct.service
 
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
-import com.mapprjct.exceptions.invitation.InvitationDMLExceptions
-import com.mapprjct.exceptions.invitation.InvitationValidationException
-import com.mapprjct.exceptions.project.ProjectDMLException
+import com.mapprjct.exceptions.domain.invitation.CreateInvitationException
+import com.mapprjct.exceptions.domain.invitation.FindInvitationException
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.Role
 import com.mapprjct.model.asRole
+import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.value.StringUUID
+import com.mapprjct.utils.Either
+import com.mapprjct.utils.toEither
+import io.ktor.http.content.EntityTagVersion
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.util.UUID
@@ -20,91 +25,69 @@ class InvitationService(
     val projectRepository: ProjectRepository,
     val invitationRepository: InvitationRepository
 ) {
-
-    /**
-     * @throws IllegalArgumentException - if project UUID or role code invalid
-     * @throws IllegalStateException - if user already have 5 invitations
-     * @throws InvitationValidationException.InvalidUserRole - if creating invitation for role Owner
-     * @throws InvitationValidationException.UserNotStayInProject - if user not stay in project
-     * @throws InvitationValidationException.NoPermissionToAddMembers - if user hasn't permission to add project members
-     * @throws ProjectDMLException.ProjectNotFoundException - if project with ID doesn't exist
-     * */
     @OptIn(ExperimentalTime::class)
     suspend fun createInvitation(
-        inviterPhone : String,
-        projectID : String,
-        role : Short
-    ) : Result<Invitation>{
-        return runCatching {
-            val projectUUID = UUID.fromString(projectID)
-            val invitationRole = role.asRole()
+        inviterPhone : RussiaPhoneNumber,
+        projectID : StringUUID,
+        role : Role
+    ) : Either<Invitation, CreateInvitationException>{
+        return runCatching { 
+            val projectUUID = UUID.fromString(projectID.value)
 
-            requireRoleIsNotOwner(invitationRole)
-            requireProjectExists(projectID)
+            if (role == Role.Owner) throw CreateInvitationException.InvalidInvitationRole(role)
 
             suspendTransaction(database) {
-                requireUserHavePermissionToInvite(inviterPhone,projectID)
+
+                projectRepository.getProjectById(projectUUID)
+                    ?: throw CreateInvitationException.ProjectNotFound(projectID.value)
+
+                requireUserHavePermissionToInvite(inviterPhone,projectID.value)
 
                 val newInvitation = Invitation(
                     inviterPhone = inviterPhone,
                     projectID = projectUUID,
                     expireAt = Clock.System.now().toEpochMilliseconds() + 24.hours.inWholeMilliseconds,
                     inviteCode = UUID.randomUUID(),
-                    role = invitationRole
+                    role = role
                 )
-                val invitation = invitationRepository.insertInvitation(newInvitation).getOrElse {
-                    throw InvitationValidationException.TooManyInvitationsPerUser()
-                }
-                return@suspendTransaction invitation
+                invitationRepository.insertInvitation(newInvitation)
+                return@suspendTransaction newInvitation
+            }
+        }.toEither { error->
+            when(error){
+                is ExposedSQLException -> CreateInvitationException.Database(error)
+                else -> CreateInvitationException.Unexpected(error)
             }
         }
     }
+
     //todo cover in tests
-    /**
-     * @throws IllegalArgumentException - if invite code isn't UUID
-     * @throws InvitationDMLExceptions.InvitationNotFoundException - if invitation not found
-     * */
-    suspend fun getInvitation(inviteCode : String) : Result<Invitation> {
+    suspend fun getInvitation(inviteCode : StringUUID) : Either<Invitation, FindInvitationException> {
         return runCatching {
-            val codeUUID = UUID.fromString(inviteCode)
+            val codeUUID = UUID.fromString(inviteCode.value)
             suspendTransaction(database) {
-                invitationRepository.getInvitation(codeUUID) ?: throw InvitationDMLExceptions.InvitationNotFoundException(inviteCode)
+                invitationRepository.getInvitation(codeUUID) ?: throw FindInvitationException.NotFound(inviteCode.value)
+            }
+        }.toEither { error->
+            when(error){
+                is ExposedSQLException-> FindInvitationException.Database(error)
+                else -> FindInvitationException.Unexpected(error)
             }
         }
     }
+
     suspend fun deleteInvitation(inviteCode : String) : Result<Unit> {
-        return runCatching {
-            suspendTransaction(database) {
-                val codeUUID = UUID.fromString(inviteCode)
-            }
-        }
+        TODO()
     }
 
     /**
-     * @throws InvitationValidationException.InvalidUserRole - if role is Owner
-     * */
-    private fun requireRoleIsNotOwner(role: Role){
-        if (role == Role.Owner)
-            throw InvitationValidationException.InvalidUserRole(role)
-    }
-
-    /**
-     * @throws ProjectDMLException.ProjectNotFoundException - if project doesn't exist
-     * */
-    private suspend fun requireProjectExists(projectID: String) = suspendTransaction(database) {
-        projectRepository.getProjectById(UUID.fromString(projectID))
-            ?: throw ProjectDMLException.ProjectNotFoundException(projectID)
-    }
-
-    /**
-     *
      * --Must be called inside transaction--
      *
-     * @throws InvitationValidationException.NoPermissionToAddMembers - if user hasn't permission to add members
-     * @throws InvitationValidationException.UserNotStayInProject - if user doesn't stay in project
+     * @throws CreateInvitationException.NoPermissionToAddMembers - if user hasn't permission to add members
+     * @throws CreateInvitationException.InviterNotStayInProject - if user doesn't stay in project
      * */
     private suspend fun requireUserHavePermissionToInvite(
-        inviterPhone: String,
+        inviterPhone: RussiaPhoneNumber,
         projectID: String
     ) {
         val userMembership = projectRepository.getAllUserProjects(inviterPhone)
@@ -113,10 +96,10 @@ class InvitationService(
             //check user have permission to add members
             val currentRole = userMembership.role.toShort().asRole()
             if (currentRole == Role.Worker) {
-                throw InvitationValidationException.NoPermissionToAddMembers(projectID)
+                throw CreateInvitationException.NoPermissionToAddMembers(projectID)
             }
         } else {
-            throw InvitationValidationException.UserNotStayInProject(projectID)
+            throw CreateInvitationException.InviterNotStayInProject(projectID)
         }
     }
 }

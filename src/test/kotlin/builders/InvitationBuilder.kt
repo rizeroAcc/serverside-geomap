@@ -6,6 +6,7 @@ import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
 import com.mapprjct.model.Role
 import com.mapprjct.model.dto.User
+import com.mapprjct.model.value.RussiaPhoneNumber
 import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -23,7 +24,7 @@ class InvitationBuilder {
 
     fun build(): Invitation {
         return Invitation(
-            inviterPhone = inviterPhone?: throw NullPointerException("Inviter phone not set"),
+            inviterPhone = inviterPhone?.let { RussiaPhoneNumber(it) }?: throw NullPointerException("Inviter phone not set"),
             inviteCode = inviteCode?: UUID.randomUUID(),
             projectID = projectID ?: throw NullPointerException("Project ID not set"),
             expireAt = expireAt ?: Clock.System.now().toEpochMilliseconds(),

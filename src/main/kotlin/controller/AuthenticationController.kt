@@ -2,7 +2,15 @@
 
 package com.mapprjct.controller
 
+import com.mapprjct.controller.util.respondBadRequest
+import com.mapprjct.controller.util.respondConflict
+import com.mapprjct.controller.util.respondDatabaseError
+import com.mapprjct.controller.util.respondElementNotFound
+import com.mapprjct.controller.util.respondUnexpected
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
+import com.mapprjct.exceptions.domain.user.CredentialsValidationException
+import com.mapprjct.exceptions.domain.user.FindUserException
+import com.mapprjct.exceptions.domain.user.UserCreationException
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession
@@ -12,6 +20,8 @@ import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDto
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
+import com.mapprjct.utils.fold
+import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
@@ -42,21 +52,30 @@ private fun Routing.signInRoute(
     sessionStorage : SessionStorage,
 ) {
     post("/signin") {
-        val request = call.receive<SignInRequest>()
+        val request = try {
+            call.receive<SignInRequest>()
+        }catch (e : IllegalArgumentException){
+            respondBadRequest(e.message as String)
+            return@post
+        }
         val credentialsValid = userService.validateCredentials(
             request.toUserCredentialsDTO()
         ).getOrElse { error->
-            call.respond(
-                status = HttpStatusCode.InternalServerError,
-                message = ErrorResponse.loggedDatabaseException(error as ExposedSQLException)
-            )
+            when (error) {
+                is CredentialsValidationException.Database -> respondDatabaseError()
+                is CredentialsValidationException.Unexpected -> respondUnexpected()
+            }
             return@post
         }
         if (!credentialsValid){
             call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
         }
-        val user = userService.getUser(request.phone.value).getOrElse { error->
-            call.respond(HttpStatusCode.InternalServerError, ErrorResponse.loggedDatabaseException(error as ExposedSQLException))
+        val user = userService.getUser(request.phone).getOrElse { error->
+            when (error) {
+                is FindUserException.Database -> respondDatabaseError()
+                is FindUserException.Unexpected -> respondUnexpected()
+                is FindUserException.UserNotFound -> respondUnexpected() //if credentials valid - user must exists
+            }
             return@post
         }
         (sessionStorage as PostgresSessionStorage).clearUserSessions(user.phone.value)
@@ -100,7 +119,7 @@ private fun Routing.registrationRoute(userService : UserService){
         val username = registrationRequest.username
         val registrationResult = userService.createUser(
             userCredentials = userCredentials,
-            username = username.value
+            username = username
         )
         registrationResult.fold(
             onSuccess = { user->
@@ -108,20 +127,11 @@ private fun Routing.registrationRoute(userService : UserService){
                     RegistrationResponse(user)
                 )
             },
-            onFailure = { error->
+            onError = { error->
                 when(error){
-                    is UserValidationException-> call.respond(
-                        status = HttpStatusCode.BadRequest,
-                        message = ErrorResponse.fromAppException(error)
-                    )
-                    is UserDMLExceptions.UserAlreadyExistsException -> call.respond(
-                        status = HttpStatusCode.Conflict,
-                        message = ErrorResponse.fromAppException(error)
-                    )
-                    is ExposedSQLException -> call.respond(
-                        status = HttpStatusCode.InternalServerError,
-                        message = ErrorResponse.loggedDatabaseException(error)
-                    )
+                    is UserCreationException.Database -> respondDatabaseError()
+                    is UserCreationException.Unexpected -> respondUnexpected()
+                    is UserCreationException.UserAlreadyExists -> respondConflict("User with phone: ${error.phone} already registered")
                 }
             }
         )

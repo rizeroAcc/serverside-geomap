@@ -223,7 +223,7 @@ class ProjectControllerTest : FunSpec() {
                         setBody(createInvitationRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Forbidden
-                    response.body<ErrorResponse>().detailedMessage shouldBe "User not stay in project: ${project.projectID}"
+                    response.body<ErrorResponse>().details shouldBe "User not stay in project: ${project.projectID}"
                 }
             }
             testKtorApp(postgres){
@@ -250,7 +250,7 @@ class ProjectControllerTest : FunSpec() {
                         setBody(createInvitationRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Forbidden
-                    response.body<ErrorResponse>().detailedMessage shouldBe "No permission to add members to project: ${project.projectID}"
+                    response.body<ErrorResponse>().details shouldBe "No permission to add members to project: ${project.projectID}"
                 }
                 test("should respond Conflict if user already have 5 active invitations"){
                     val createInvitationRequest = CreateInvitationRequest(
@@ -268,7 +268,7 @@ class ProjectControllerTest : FunSpec() {
                         setBody(createInvitationRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Conflict
-                    response.body<ErrorResponse>().detailedMessage shouldContain "Try to register over five invitations"
+                    response.body<ErrorResponse>().details shouldContain "Try to register over five invitations"
                 }
             }
         }

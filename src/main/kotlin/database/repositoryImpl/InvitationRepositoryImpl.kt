@@ -4,6 +4,7 @@ import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.model.asRole
 import com.mapprjct.model.Invitation
+import com.mapprjct.model.value.RussiaPhoneNumber
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -13,26 +14,16 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import java.util.UUID
 
 class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
-
-    /**
-     * @throws IllegalStateException if user already have 5 invitations
-     * */
     override suspend fun insertInvitation(
         invitation : Invitation
-    ): Result<Invitation> {
-        //todo в отдельный метод
-        val inviteCodeCount = InviteCodeTable.selectAll().where {
-            InviteCodeTable.inviterPhone eq invitation.inviterPhone
-            InviteCodeTable.projectID eq invitation.projectID
-        }.count()
-        InviteCodeTable.insert {
-            it[InviteCodeTable.inviterPhone] = invitation.inviterPhone
+    ): Int {
+        return InviteCodeTable.insert {
+            it[InviteCodeTable.inviterPhone] = invitation.inviterPhone.value
             it[InviteCodeTable.projectID] = invitation.projectID
             it[InviteCodeTable.expireAt] = invitation.expireAt
             it[InviteCodeTable.inviteCode] = invitation.inviteCode
             it[InviteCodeTable.role] = invitation.role.toShort()
-        }
-        return Result.success(invitation)
+        }.insertedCount
     }
 
     override suspend fun getInvitation(code: UUID): Invitation? {
@@ -41,7 +32,7 @@ class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
             .where{ InviteCodeTable.inviteCode eq code }
             .singleOrNull()?.let {
                 Invitation(
-                    inviterPhone = it[InviteCodeTable.inviterPhone],
+                    inviterPhone = RussiaPhoneNumber(it[InviteCodeTable.inviterPhone]),
                     inviteCode = it[InviteCodeTable.inviteCode],
                     projectID = it[InviteCodeTable.projectID],
                     expireAt = it[InviteCodeTable.expireAt],
