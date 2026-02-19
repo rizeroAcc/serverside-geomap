@@ -4,8 +4,10 @@ import com.mapprjct.controller.util.respondBadRequest
 import com.mapprjct.controller.util.respondDatabaseError
 import com.mapprjct.controller.util.respondElementNotFound
 import com.mapprjct.controller.util.respondForbidden
+import com.mapprjct.controller.util.respondNoContent
 import com.mapprjct.controller.util.respondRequestTimeout
 import com.mapprjct.controller.util.respondServerError
+import com.mapprjct.controller.util.respondServiceUnavailable
 import com.mapprjct.controller.util.respondUnexpected
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.exceptions.domain.user.DeleteUserAvatarException
@@ -21,11 +23,10 @@ import com.mapprjct.model.request.profile.ChangePasswordRequest
 import com.mapprjct.model.request.profile.ChangeUserInfoRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.profile.ChangePasswordResponse
-import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.profile.DeleteAvatarResponse
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.utils.fold
 import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpHeaders
@@ -50,10 +51,8 @@ import io.ktor.server.routing.routing
 import io.ktor.server.sessions.SessionStorage
 import io.ktor.server.sessions.clear
 import io.ktor.server.sessions.sessions
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
+import io.ktor.utils.io.CancellationException
 import org.koin.ktor.ext.inject
-import java.io.FileNotFoundException
-import java.io.IOException
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -99,7 +98,7 @@ private fun Route.updateProfileAvatar(userService: UserService){
                             when(error){
                                 is UpdateAvatarException.ConnectionTerminated -> respondRequestTimeout()
                                 is UpdateAvatarException.DatabaseError -> respondDatabaseError()
-                                is UpdateAvatarException.FilesystemUnavailable -> respondServerError("Filesystem is unavailable. Try later")
+                                is UpdateAvatarException.FilesystemUnavailable -> respondServiceUnavailable("Filesystem is unavailable. Try later")
                                 is UpdateAvatarException.InvalidAvatarFormat -> respondBadRequest("Invalid avatar format. Allowed file format: ${error.allowedFormat}")
                                 is UpdateAvatarException.Unexpected -> respondUnexpected()
                                 is UpdateAvatarException.UserNotFound -> respondUnexpected()
@@ -115,10 +114,14 @@ private fun Route.updateProfileAvatar(userService: UserService){
                 }
                 part.dispose()
             }
+            println("\n\n\n ---- exit for each part ---- \n\n\n")
+            return@post
         }.onFailure { exception->
             when (exception) {
                 is ContentTransformationException -> respondBadRequest("Request have invalid multipart format")
                 is IllegalArgumentException -> respondBadRequest(exception.message!!)
+                is CancellationException -> throw exception
+                else -> respondUnexpected()
             }
         }
     }
@@ -137,7 +140,7 @@ private fun Route.getProfileAvatar(userService : UserService) {
                 when (error) {
                     is FindUserAvatarException.DatabaseError -> respondDatabaseError()
                     is FindUserAvatarException.Unexpected -> respondUnexpected()
-                    is FindUserAvatarException.UserAvatarNotFound -> respondElementNotFound("User avatar not found")
+                    is FindUserAvatarException.UserAvatarNotFound -> respondNoContent("User avatar not found")
                     is FindUserAvatarException.UserNotFound -> respondUnexpected()
                 }
             }
@@ -177,7 +180,7 @@ private fun Route.updateUserInfo(userService: UserService) {
                 when (error) {
                     is UserUpdateException.DatabaseError -> respondDatabaseError()
                     is UserUpdateException.Unexpected -> respondUnexpected()
-                    is UserUpdateException.UserNotFound -> respondUnexpected()
+                    is UserUpdateException.UserNotFound -> respondBadRequest("Try to change user phone")
                 }
             }
         )

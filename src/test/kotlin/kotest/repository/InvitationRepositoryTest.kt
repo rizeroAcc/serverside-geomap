@@ -9,16 +9,18 @@ import com.mapprjct.database.tables.InviteCodeTable
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.model.Role
-import io.kotest.assertions.throwables.shouldThrow
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.Role
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.testcontainers.containers.PostgreSQLContainer
 import java.util.*
@@ -58,7 +60,7 @@ class InvitationRepositoryTest : FunSpec({
 
         val inviterUser = suspendTransaction(database) {
             createTestUser().also {
-                userRepository.insert(it, "testPass")
+                userRepository.insert(it, Password("testPass"))
             }
         }
         val project = suspendTransaction(database) {
@@ -66,40 +68,23 @@ class InvitationRepositoryTest : FunSpec({
         }
 
         context("insert"){
-            test("should insert invitations") {
+            test("should insert invitation") {
                 suspendTransaction(database) {
                     val invitation = createInvitation {
                         fromInviter(inviterUser)
                         toProject(project)
                         withRole(Role.Worker)
                     }
-                    invitationRepository.insertInvitation(invitation).getOrNull() shouldNotBeNull{
-                        this.projectID shouldBe invitation.projectID
-                        this.inviterPhone shouldBe inviterUser.phone
-                        this.inviteCode shouldBe invitation.inviteCode
-                        this.expireAt shouldBe invitation.expireAt
-                        this.role shouldBe invitation.role
-                    }
-                }
-            }
-            test("should return error, when inserting over 5 invitation per user"){
-                suspendTransaction(database) {
-                    for (i in 1..5){
-                        createInvitation {
-                            fromInviter(inviterUser)
-                            toProject(project)
-                            withRole(Role.Worker)
-                        }.also {
-                            invitationRepository.insertInvitation(it)
-                        }
-                    }
-                    val overFiveInvitation = createInvitation {
-                        fromInviter(inviterUser)
-                        toProject(project)
-                        withRole(Role.Worker)
-                    }
-                    shouldThrow<IllegalStateException>{
-                        invitationRepository.insertInvitation(overFiveInvitation).getOrThrow()
+                    invitationRepository.insertInvitation(invitation)
+
+                    InviteCodeTable.selectAll()
+                        .where { InviteCodeTable.inviteCode eq invitation.inviteCode }
+                        .singleOrNull() shouldNotBeNull {
+                            this[InviteCodeTable.projectID] shouldBe invitation.projectID
+                            this[InviteCodeTable.inviterPhone] shouldBe invitation.inviterPhone.value
+                            this[InviteCodeTable.inviteCode] shouldBe invitation.inviteCode
+                            this[InviteCodeTable.expireAt] shouldBe invitation.expireAt
+                            this[InviteCodeTable.role] shouldBe invitation.role.toShort()
                     }
                 }
             }
@@ -112,7 +97,7 @@ class InvitationRepositoryTest : FunSpec({
                         toProject(project)
                         withRole(Role.Worker)
                     }.also{
-                        invitationRepository.insertInvitation(it).isSuccess shouldBe true
+                        invitationRepository.insertInvitation(it) shouldBe 1
                     }
                     invitationRepository.getInvitation(insertedInvitation.inviteCode) shouldBe insertedInvitation
                 }
@@ -126,13 +111,12 @@ class InvitationRepositoryTest : FunSpec({
         context("delete") {
             test("should delete existing invitation"){
                 suspendTransaction {
-                    //given
                     val invitation = createInvitation {
                         fromInviter(inviterUser)
                         toProject(project)
                         withRole(Role.Worker)
                     }
-                    invitationRepository.insertInvitation(invitation).getOrNull() shouldBe invitation
+                    invitationRepository.insertInvitation(invitation) shouldBe 1
                     invitationRepository.deleteInvitation(invitation.inviteCode)
                     invitationRepository.getInvitation(invitation.inviteCode) shouldBe null
                 }

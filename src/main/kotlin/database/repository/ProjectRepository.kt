@@ -1,16 +1,16 @@
 package com.mapprjct.database.repository
 
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.ProjectWithRole
-import com.mapprjct.model.Role
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.dto.ProjectMembership
+import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import java.util.UUID
 
 interface ProjectRepository {
     /**
      * Select all uer projects and role in them
      * */
-    suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber) : List<ProjectWithRole>
+    suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber) : List<ProjectMembership>
     /**
      * Create new project and insert record in ProjectUsersTable with Owner role
      * @throws java.sql.SQLIntegrityConstraintViolationException - if project name is empty string

@@ -1,6 +1,6 @@
 package com.mapprjct.kotest.datatype
 
-import com.mapprjct.model.value.StringUUID
+import com.mapprjct.model.datatype.StringUUID
 import io.kotest.core.spec.style.FunSpec
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid

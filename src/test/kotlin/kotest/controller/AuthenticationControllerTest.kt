@@ -2,11 +2,14 @@ package com.mapprjct.kotest.controller
 
 import com.mapprjct.builders.createRegistrationRequest
 import com.mapprjct.builders.createTestUser
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
 import com.mapprjct.testKtorApp
+import com.mapprjct.utils.Either
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
@@ -45,7 +48,11 @@ class AuthenticationControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Created
                     response.body<RegistrationResponse>() shouldBe RegistrationResponse(user)
-                    userService.getUser(user.phone).getOrThrow() shouldBe user
+                    userService.getUser(user.phone) shouldBe Either.success(
+                        user.copy(
+                            phone = RussiaPhoneNumber(user.phone.normalizeAsRussiaPhone())
+                        )
+                    )
                 }
                 test("should respond 409 if user already registered"){
                     val user = createTestUser { phone = "89038518685" }
@@ -59,25 +66,16 @@ class AuthenticationControllerTest : FunSpec() {
                         setBody(registrationRequest)
                     } shouldHaveStatus HttpStatusCode.Conflict
                 }
-                test("should respond 400 if registration data invalid"){
-                    val user = createTestUser { username = " " }
-                    val registrationRequest = createRegistrationRequest {
-                        forUser(user)
-                    }
-                    client.post("/register") {
-                        setBody(registrationRequest)
-                    } shouldHaveStatus HttpStatusCode.BadRequest
-                }
             }
         }
         context("authorization"){
             testKtorApp(postgres) {
                 val sessionStorage = this.application.getKoin().get<SessionStorage>()
                 val user = createTestUser {  }
-                val userPassword = "testPassword"
+                val userPassword = Password("testPassword")
                 val registrationRequest = createRegistrationRequest {
                     forUser(user)
-                    withPassword(userPassword)
+                    withPassword(userPassword.value)
                 }
                 client.post("/register") {
                     setBody(registrationRequest)
@@ -99,7 +97,7 @@ class AuthenticationControllerTest : FunSpec() {
                 test("should respond 401 if credentials invalid"){
                     val signInRequest = SignInRequest(
                         phone = user.phone,
-                        password = "userPassword"
+                        password = Password("userPassword")
                     )
                     client.post("/signin") {
                         setBody(signInRequest)
@@ -110,11 +108,14 @@ class AuthenticationControllerTest : FunSpec() {
         context("logout"){
             testKtorApp(postgres) {
                 val sessionStorage = this.application.getKoin().get<SessionStorage>()
-                val user = User("89036559989","kirill")
-                val userPassword = "testPassword"
+                val user = createTestUser {
+                    phone = "89036559989"
+                    username = "kirill"
+                }
+                val userPassword = Password("testPassword")
                 val registrationRequest = createRegistrationRequest {
                     forUser(user)
-                    withPassword(userPassword)
+                    withPassword(userPassword.value)
                 }
                 client.post("/register") {
                     setBody(registrationRequest)

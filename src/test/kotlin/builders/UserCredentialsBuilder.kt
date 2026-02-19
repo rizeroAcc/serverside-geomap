@@ -2,8 +2,8 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.dto.UserCredentials
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 
 fun createCredentials(block : UserCredentialsBuilder.()->Unit): UserCredentials {
     return UserCredentialsBuilder().apply(block).build()

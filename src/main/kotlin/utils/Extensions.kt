@@ -1,9 +1,22 @@
 package com.mapprjct.utils
 
+import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.datatype.StringUUID
+import java.util.UUID
+
 /**
- * Change phone signature from +7********** to 8**********
- * If phone already start with 8 don't do anything
+ * @throws IllegalArgumentException - if role code incorrect
  * */
-fun String.replaceRussiaCountryCode() : String{
-    return if (this.startsWith("+7")) this.replace("+7", "8") else this
+fun Short.asRole(): Role {
+    return when (this) {
+        1.toShort() -> Role.Owner
+        2.toShort() -> Role.Admin
+        3.toShort()-> Role.Worker
+        else -> {
+            throw IllegalArgumentException("Unknown role")
+        }
+    }
 }
+
+fun StringUUID.toUUID(): UUID = UUID.fromString(this.value)
+fun UUID.toStringUUID() : StringUUID = StringUUID(this.toString())

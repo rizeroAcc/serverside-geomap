@@ -1,4 +1,4 @@
-package com.mapprjct.model.value
+package com.mapprjct.model.datatype
 
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline

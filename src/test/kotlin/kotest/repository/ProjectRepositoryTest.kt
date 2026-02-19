@@ -8,7 +8,10 @@ import com.mapprjct.database.repositoryImpl.UserRepositoryImpl
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.model.Role
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.Role
+import com.mapprjct.utils.toStringUUID
+import com.mapprjct.utils.toUUID
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
@@ -64,18 +67,19 @@ class ProjectRepositoryTest : FunSpec({
     }
     context("insert") {
         val testUser = createTestUser()
-        val testUserPassword = "testPassword"
-        suspendTransaction(database) {userRepository.insert(testUser,testUserPassword)}
+        val testUserPassword = Password("testPassword")
+        suspendTransaction(database) {
+            userRepository.insert(testUser,testUserPassword)
+        }
         test("should insert project and create record in ProjectUsersTable") {
             suspendTransaction {
                 val createdProject = projectRepository.insertProject(
                     testUser.phone,
                     "testProject"
                 )
-                val projectUUID = UUID.fromString(createdProject.projectID)
                 //check project created
                 ProjectTable.selectAll()
-                    .where {ProjectTable.id eq UUID.fromString(createdProject.projectID)}
+                    .where { ProjectTable.id eq createdProject.projectID.toUUID() }
                     .single().let {row->
                         row[ProjectTable.name] shouldBe createdProject.name
                         row[ProjectTable.membersCount] shouldBe 1.toShort()
@@ -84,26 +88,26 @@ class ProjectRepositoryTest : FunSpec({
                 ProjectUsersTable
                     .selectAll()
                     .single().let {row->
-                        row[ProjectUsersTable.projectId] shouldBe projectUUID
+                        row[ProjectUsersTable.projectId] shouldBe createdProject.projectID.toUUID()
                         row[ProjectUsersTable.role] shouldBe Role.Owner.toShort()
-                        row[ProjectUsersTable.userPhone] shouldBe testUser.phone
+                        row[ProjectUsersTable.userPhone] shouldBe testUser.phone.value
                     }
             }
         }
     }
     context("get project") {
         val testUser = createTestUser()
-        val testUserPassword = "testPassword"
-        suspendTransaction(database) {userRepository.insert(testUser,testUserPassword)}
+        val testUserPassword = Password("testPassword")
+        suspendTransaction(database) {
+            userRepository.insert(testUser,testUserPassword)
+        }
         test("should receive existing project") {
             suspendTransaction {
                 val createdProject = projectRepository.insertProject(
                     testUser.phone,
                     "testProject"
                 )
-                projectRepository.getProjectById(
-                    UUID.fromString(createdProject.projectID)
-                ) shouldBe createdProject
+                projectRepository.getProjectById(createdProject.projectID.toUUID()) shouldBe createdProject
             }
         }
         test("should receive all user projects") {
@@ -120,30 +124,35 @@ class ProjectRepositoryTest : FunSpec({
         }
     }
     context("add member to project") {
+
         val testUser = createTestUser()
-        val testUserPassword = "testPassword"
-        suspendTransaction(database) {userRepository.insert(testUser,testUserPassword)}
+        val testUserPassword = Password("testPassword")
+        suspendTransaction(database) {
+            userRepository.insert(testUser,testUserPassword)
+        }
+
         val invitedUser = createTestUser {
             phone = "89038518685"
         }
-        suspendTransaction {userRepository.insert(invitedUser,"testPass")}
+        suspendTransaction {
+            userRepository.insert(invitedUser, Password("testPass"))
+        }
+
         test("should insert new record in ProjectUsersTable and increment members count in Project table") {
             suspendTransaction {
                 val inviterPhone = testUser.phone
                 val invitableUserPhone = invitedUser.phone
                 val project = projectRepository.insertProject(inviterPhone,"testProject")
                 //when
-                projectRepository.addMemberToProject(invitableUserPhone,project = project,role = Role.Admin)
-                //then
-                projectRepository.getProjectById(UUID.fromString(project.projectID))
-                    .shouldNotBeNull().membersCount shouldBe 2
-                transaction(database) {
-                    ProjectUsersTable.selectAll().where {
-                        (ProjectUsersTable.userPhone eq invitableUserPhone).and {
-                            ProjectUsersTable.projectId eq UUID.fromString(project.projectID)
-                        }
-                    }.singleOrNull()
-                } shouldNotBe null
+                projectRepository.addMemberToProject(userPhone = invitableUserPhone,project = project,role = Role.Admin)
+
+                projectRepository.getProjectById(project.projectID.toUUID())
+                    .shouldNotBeNull()
+                    .membersCount shouldBe 2
+                ProjectUsersTable.selectAll().where {
+                    (ProjectUsersTable.userPhone eq invitableUserPhone.normalizeAsRussiaPhone())
+                        .and { ProjectUsersTable.projectId eq project.projectID.toUUID() }
+                }.singleOrNull() shouldNotBe null
             }
         }
     }

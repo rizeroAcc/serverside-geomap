@@ -2,7 +2,7 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
-import com.mapprjct.model.value.Password
+import com.mapprjct.model.datatype.Password
 import java.util.UUID
 
 fun createRegistrationRequest(block : RegistrationRequestBuilder.()->Unit ): RegistrationRequest {

@@ -1,5 +1,6 @@
 package com.mapprjct.builders
 
+import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.model.dto.Project
 import java.util.UUID
 
@@ -12,7 +13,7 @@ class ProjectBuilder {
     var name: String = "testProject"
     var memberCount: Int = 1
     fun build() = Project(
-        projectID = projectID,
+        projectID = StringUUID(projectID),
         name = name,
         membersCount = memberCount
     )

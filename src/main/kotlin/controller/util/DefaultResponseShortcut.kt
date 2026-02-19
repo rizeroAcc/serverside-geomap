@@ -35,7 +35,17 @@ suspend inline fun RoutingContext.respondServerError(message: String){
     call.respond(InternalServerError, ErrorResponse.fromText(message))
 }
 
-suspend inline fun RoutingContext.respondForbidden(message: String? = null){}
+suspend inline fun RoutingContext.respondServiceUnavailable(reason: String){
+    call.respond(ServiceUnavailable, ErrorResponse.fromText(reason))
+}
+
+suspend inline fun RoutingContext.respondForbidden(message: String? = null){
+    call.respond(HttpStatusCode.Forbidden, ErrorResponse.fromText(message ?: "Forbidden"))
+}
+
+suspend inline fun RoutingContext.respondNoContent(message: String? = null){
+    call.respond(HttpStatusCode.NoContent, ErrorResponse.fromText(message ?: "No Content"))
+}
 
 suspend inline fun RoutingContext.respondBadRequest(message : String) {
     call.respond(HttpStatusCode.BadRequest, ErrorResponse.fromText(message))

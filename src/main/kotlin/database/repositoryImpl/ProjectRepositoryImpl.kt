@@ -4,10 +4,13 @@ import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.ProjectWithRole
-import com.mapprjct.model.Role
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.utils.replaceRussiaCountryCode
+import com.mapprjct.model.dto.ProjectMembership
+import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.utils.asRole
+import com.mapprjct.utils.toStringUUID
+import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -18,7 +21,7 @@ import java.util.UUID
 
 class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
 
-    override suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber): List<ProjectWithRole> {
+    override suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber): List<ProjectMembership> {
         return (ProjectUsersTable innerJoin ProjectTable)
             .select(
                 ProjectTable.id,
@@ -30,13 +33,13 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
                 ProjectUsersTable.userPhone eq userPhone.normalizeAsRussiaPhone()
             }
             .map { result->
-                ProjectWithRole(
+                ProjectMembership(
                     project = Project(
-                        projectID = result[ProjectTable.id].toString() ,
+                        projectID = StringUUID(result[ProjectTable.id].toString()) ,
                         name = result[ProjectTable.name] ,
                         membersCount = result[ProjectTable.membersCount].toInt()
                     ),
-                    role = result[ProjectUsersTable.role].toInt()
+                    role = result[ProjectUsersTable.role].asRole()
                 )
             }
     }
@@ -56,7 +59,7 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
             it[ProjectUsersTable.role] = 1
         }
         return Project(
-            projectID = newProjectUUID.toString(),
+            projectID = newProjectUUID.toStringUUID(),
             name = projectName,
             membersCount = 1,
         )
@@ -68,7 +71,7 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
             .where{ ProjectTable.id eq projectId }
             .singleOrNull()?.let {
                 Project(
-                    projectID = it[ProjectTable.id].toString(),
+                    projectID = it[ProjectTable.id].toStringUUID(),
                     name = it[ProjectTable.name],
                     membersCount = it[ProjectTable.membersCount].toInt()
                 )
@@ -80,7 +83,7 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
         project : Project,
         role : Role
     ) {
-        val projectUUID = UUID.fromString(project.projectID)
+        val projectUUID = project.projectID.toUUID()
         ProjectUsersTable.insert {
             it[ProjectUsersTable.userPhone] = userPhone.normalizeAsRussiaPhone()
             it[ProjectUsersTable.projectId] = projectUUID

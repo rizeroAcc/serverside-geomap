@@ -36,3 +36,13 @@ inline fun<S,F> Either<S,F>.getOrElse(mapper: (F) -> S) : S = when(this){
     is Either.Failure<F> -> mapper(this.error)
     is Either.Success<S> -> this.value
 }
+
+inline fun<S,F> Either<S,F>.leftOrNull() : S? = when(this){
+    is Either.Failure<F> -> null
+    is Either.Success<S> -> this.value
+}
+
+inline fun<S,F> Either<S,F>.rightOrNull() : F? = when(this){
+    is Either.Failure<F> -> this.error
+    is Either.Success<S> -> null
+}

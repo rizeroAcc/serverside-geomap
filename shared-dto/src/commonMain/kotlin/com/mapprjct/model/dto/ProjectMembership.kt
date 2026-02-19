@@ -1,9 +1,10 @@
 package com.mapprjct.model.dto
 
+import com.mapprjct.model.datatype.Role
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ProjectWithRole(
+data class ProjectMembership(
     val project: Project,
-    val role: Int,
+    val role: Role,
 )

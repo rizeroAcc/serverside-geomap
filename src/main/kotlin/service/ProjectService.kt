@@ -8,15 +8,15 @@ import com.mapprjct.exceptions.domain.project.FindAllUserProjectsException
 import com.mapprjct.exceptions.domain.project.FindProjectException
 import com.mapprjct.exceptions.domain.project.JoinProjectException
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.ProjectWithRole
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.model.value.StringUUID
+import com.mapprjct.model.dto.ProjectMembership
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.utils.Either
 import com.mapprjct.utils.toEither
+import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import org.postgresql.util.PSQLState
 import java.util.UUID
 
 class ProjectService(
@@ -27,20 +27,19 @@ class ProjectService(
 ) {
     suspend fun getProject(projectID : StringUUID) : Either<Project, FindProjectException>{
         return runCatching {
-            val projectUUID = UUID.fromString(projectID.value)
             suspendTransaction {
-                projectRepository.getProjectById(projectUUID)
+                projectRepository.getProjectById(projectID.toUUID())
                     ?: throw FindProjectException.NotFound(projectID.value)
             }
         }.toEither { error->
             when(error){
                 is ExposedSQLException -> FindProjectException.Database(error)
-                else -> throw FindProjectException.Unexpected(error)
+                else -> FindProjectException.Unexpected(error)
             }
         }
     }
 
-    suspend fun getAllUserProjects(userPhone : RussiaPhoneNumber): Either<List<ProjectWithRole>, FindAllUserProjectsException>{
+    suspend fun getAllUserProjects(userPhone : RussiaPhoneNumber): Either<List<ProjectMembership>, FindAllUserProjectsException>{
         return runCatching {
             suspendTransaction(database) {
                 userRepository.getUser(userPhone)
@@ -74,9 +73,8 @@ class ProjectService(
     //TODO Уже по логике UseCase. Потом можно вынести
     suspend fun joinProject(userPhone: RussiaPhoneNumber, invitationCode : StringUUID) : Either<Project, JoinProjectException>{
         return runCatching {
-            val code = UUID.fromString(invitationCode.value)
             suspendTransaction(database) {
-                val invitation = invitationRepository.getInvitation(code = code)
+                val invitation = invitationRepository.getInvitation(invitationCode.toUUID())
                     ?: throw JoinProjectException.InvitationNotFound(invitationCode.value)
 
                 if (userPhone == invitation.inviterPhone){
@@ -106,7 +104,7 @@ class ProjectService(
      * */
     private suspend fun requireUserNotStayInProject(userPhone: RussiaPhoneNumber, projectID : String){
         val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
-            it.project.projectID
+            it.project.projectID.value
         }.contains(projectID)
 
         if (userAlreadyStayInProject){

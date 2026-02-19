@@ -1,6 +1,6 @@
 package com.mapprjct.kotest.datatype
 
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrowExactly
 import io.kotest.core.spec.style.FunSpec

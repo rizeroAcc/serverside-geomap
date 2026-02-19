@@ -2,8 +2,8 @@ package com.mapprjct.database.repository
 
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 
 interface UserRepository {
     suspend fun insert(user: User, password : Password)

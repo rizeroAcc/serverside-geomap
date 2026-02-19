@@ -4,9 +4,9 @@ package com.mapprjct.builders
 
 import com.mapprjct.model.Invitation
 import com.mapprjct.model.dto.Project
-import com.mapprjct.model.Role
+import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -36,7 +36,7 @@ class InvitationBuilder {
         inviterPhone = user.phone.value
     }
     fun toProject(project: Project){
-        projectID = UUID.fromString(project.projectID)
+        projectID = UUID.fromString(project.projectID.value)
     }
     fun withRole(role : Role){
         this.role = role

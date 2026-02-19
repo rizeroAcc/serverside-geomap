@@ -30,7 +30,7 @@ class FileAvatarStorage(
         val newFileName = "${user.phone}.$fileExtension"
         val oldAvatarPath = user.avatarFilename
 
-        return runCatching {
+        return try {
             withContext(Dispatchers.IO) {
                 avatarByteProvider().copyAndClose(tempFile.writeChannel())
             }
@@ -39,17 +39,15 @@ class FileAvatarStorage(
             if(!tempFile.renameTo(finalFile)){
                 throw IOException("Failed to rename temp → final: ${tempFile.path}")
             }
-            newFileName
-        }.onFailure { exception ->
-            tempFile.delete()
-            if (exception is CancellationException){
-                throw exception
-            }
-        }.recover { exception->
-            return when(exception){
-                is IOException -> Result.failure(exception)
+            Result.success(newFileName)
+        }catch (e : Throwable) {
+            when(e){
+                is CancellationException -> throw e
+                is IOException -> Result.failure(e)
                 else -> Result.failure(NetworkInterruptedException("Receive file failed because connection terminated"))
             }
+        } finally {
+            tempFile.delete()
         }
     }
 

@@ -5,13 +5,13 @@ import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.exceptions.domain.invitation.CreateInvitationException
 import com.mapprjct.exceptions.domain.invitation.FindInvitationException
 import com.mapprjct.model.Invitation
-import com.mapprjct.model.Role
-import com.mapprjct.model.asRole
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.model.value.StringUUID
+import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.utils.Either
+import com.mapprjct.utils.asRole
 import com.mapprjct.utils.toEither
-import io.ktor.http.content.EntityTagVersion
+import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -31,8 +31,8 @@ class InvitationService(
         projectID : StringUUID,
         role : Role
     ) : Either<Invitation, CreateInvitationException>{
-        return runCatching { 
-            val projectUUID = UUID.fromString(projectID.value)
+        return runCatching {
+            val projectUUID = projectID.toUUID()
 
             if (role == Role.Owner) throw CreateInvitationException.InvalidInvitationRole(role)
 
@@ -64,9 +64,8 @@ class InvitationService(
     //todo cover in tests
     suspend fun getInvitation(inviteCode : StringUUID) : Either<Invitation, FindInvitationException> {
         return runCatching {
-            val codeUUID = UUID.fromString(inviteCode.value)
             suspendTransaction(database) {
-                invitationRepository.getInvitation(codeUUID) ?: throw FindInvitationException.NotFound(inviteCode.value)
+                invitationRepository.getInvitation(inviteCode.toUUID()) ?: throw FindInvitationException.NotFound(inviteCode.value)
             }
         }.toEither { error->
             when(error){
@@ -91,10 +90,10 @@ class InvitationService(
         projectID: String
     ) {
         val userMembership = projectRepository.getAllUserProjects(inviterPhone)
-            .singleOrNull { it.project.projectID == projectID }
+            .singleOrNull { it.project.projectID.value == projectID }
         if (userMembership != null) {
             //check user have permission to add members
-            val currentRole = userMembership.role.toShort().asRole()
+            val currentRole = userMembership.role
             if (currentRole == Role.Worker) {
                 throw CreateInvitationException.NoPermissionToAddMembers(projectID)
             }

@@ -1,7 +1,7 @@
 package com.mapprjct.model.dto
 
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
 import kotlinx.serialization.Serializable
 
 @Serializable

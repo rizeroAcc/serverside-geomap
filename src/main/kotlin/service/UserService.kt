@@ -15,9 +15,9 @@ import com.mapprjct.exceptions.domain.user.UpdateUserPasswordException
 import com.mapprjct.exceptions.domain.user.UserCreationException
 import com.mapprjct.exceptions.domain.user.UserUpdateException
 import com.mapprjct.model.dto.UserCredentials
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.model.value.Username
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Username
 import com.mapprjct.utils.Either
 import com.mapprjct.utils.getOrElse
 import com.mapprjct.utils.toEither
@@ -34,7 +34,6 @@ class UserService(
     val userRepository: UserRepository,
     val avatarStorage: AvatarStorage,
     val database: Database,
-    val appConfig: AppConfig,
 ) {
     suspend fun createUser(userCredentials : UserCredentials, username : Username) : Either<User, UserCreationException> {
         return runCatching {

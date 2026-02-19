@@ -1,8 +1,11 @@
 package com.mapprjct.model
 
+import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.dto.InvitationDTO
 import com.mapprjct.model.response.project.CreateInvitationResponse
-import com.mapprjct.model.value.RussiaPhoneNumber
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.utils.toStringUUID
+import com.mapprjct.utils.toUUID
 import java.util.UUID
 
 data class Invitation(
@@ -15,11 +18,11 @@ data class Invitation(
 
 fun Invitation.toDTO() : InvitationDTO {
     return InvitationDTO(
-        inviterPhone = inviterPhone.value,
-        inviteCode = inviteCode.toString(),
-        projectID = projectID.toString(),
+        inviterPhone = RussiaPhoneNumber(inviterPhone.value),
+        inviteCode = inviteCode.toStringUUID(),
+        projectID = projectID.toStringUUID(),
         expireAt = expireAt,
-        role = role.toShort()
+        role = role
     )
 }
 /**
@@ -27,11 +30,11 @@ fun Invitation.toDTO() : InvitationDTO {
  * */
 fun InvitationDTO.toInvitation() : Invitation {
     return Invitation(
-        inviterPhone = RussiaPhoneNumber(this.inviterPhone),
-        inviteCode = UUID.fromString(this.inviteCode),
-        projectID = UUID.fromString(this.projectID),
+        inviterPhone = this.inviterPhone,
+        inviteCode = this.inviteCode.toUUID(),
+        projectID = this.projectID.toUUID(),
         expireAt = this.expireAt,
-        role = this.role.asRole()
+        role = this.role
     )
 }
 

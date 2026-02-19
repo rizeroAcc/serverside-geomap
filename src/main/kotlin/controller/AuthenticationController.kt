@@ -24,6 +24,7 @@ import com.mapprjct.utils.fold
 import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.request.ContentTransformationException
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
@@ -52,14 +53,11 @@ private fun Routing.signInRoute(
     sessionStorage : SessionStorage,
 ) {
     post("/signin") {
-        val request = try {
-            call.receive<SignInRequest>()
-        }catch (e : IllegalArgumentException){
-            respondBadRequest(e.message as String)
-            return@post
-        }
+
+        val request = call.receive<SignInRequest>()
+
         val credentialsValid = userService.validateCredentials(
-            request.toUserCredentialsDTO()
+            userCredentials = request.toUserCredentialsDTO()
         ).getOrElse { error->
             when (error) {
                 is CredentialsValidationException.Database -> respondDatabaseError()

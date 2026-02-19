@@ -16,15 +16,14 @@ import com.mapprjct.service.ProjectService
 import com.mapprjct.model.request.project.CreateProjectRequest
 import com.mapprjct.model.request.project.CreateInvitationRequest
 import com.mapprjct.model.request.project.JoinProjectRequest
-import com.mapprjct.model.ErrorResponse
-import com.mapprjct.model.asRole
 import com.mapprjct.model.createInvitationResponseFromInvitation
 import com.mapprjct.model.response.project.CreateProjectResponse
 import com.mapprjct.model.response.project.GetAllUserProjectsResponse
 import com.mapprjct.model.response.project.GetProjectResponse
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.model.value.StringUUID
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.service.InvitationService
+import com.mapprjct.utils.asRole
 import com.mapprjct.utils.fold
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -37,7 +36,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.koin.ktor.ext.inject
 
 fun Application.configureProjectsController() {

@@ -4,10 +4,9 @@ import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.model.dto.User
-import com.mapprjct.model.value.Password
-import com.mapprjct.model.value.RussiaPhoneNumber
-import com.mapprjct.model.value.Username
-import com.mapprjct.utils.replaceRussiaCountryCode
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Username
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database

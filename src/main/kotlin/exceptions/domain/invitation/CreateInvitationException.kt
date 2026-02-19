@@ -1,7 +1,6 @@
 package com.mapprjct.exceptions.domain.invitation
 
-import com.mapprjct.exceptions.domain.project.JoinProjectException
-import com.mapprjct.model.Role
+import com.mapprjct.model.datatype.Role
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 
 sealed class CreateInvitationException(cause : Throwable? = null) : Throwable(cause) {

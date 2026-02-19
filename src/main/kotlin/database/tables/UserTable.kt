@@ -8,9 +8,9 @@ import org.jetbrains.exposed.v1.core.greater
 
 object UserTable : Table("users"){
     val phone : Column<String> =
-        varchar("phone", 11)
+        varchar("phone", 12)
             .check(name = "phone_valid") {
-                it.charLength() eq 11
+                it.charLength() eq 12
             }
             .uniqueIndex()
     val username : Column<String> =

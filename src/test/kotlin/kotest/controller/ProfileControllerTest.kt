@@ -2,6 +2,7 @@ package com.mapprjct.kotest.controller
 
 import com.mapprjct.*
 import com.mapprjct.builders.createCredentials
+import com.mapprjct.exceptions.domain.user.FindUserAvatarException
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
@@ -10,14 +11,20 @@ import com.mapprjct.model.request.profile.ChangeUserInfoRequest
 import com.mapprjct.model.response.profile.AvatarUpdateResponse
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.model.ErrorResponse
+import com.mapprjct.model.datatype.Password
+import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.Username
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
+import com.mapprjct.utils.leftOrNull
+import com.mapprjct.utils.rightOrNull
 import io.kotest.assertions.ktor.client.shouldHaveContentType
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -42,16 +49,23 @@ class ProfileControllerTest : FunSpec() {
         install(TestContainerSpecExtension(postgres))
 
         suspend fun ApplicationTestBuilder.createRegisterAndLoginUser(
-            phone : String = "89036559989",
+            phone : String = "+79036559989",
             username : String = "admin",
             password : String = "testPassword"
         ) : Pair<User,String>{
-            val registrationRequest = RegistrationRequest(phone, username, password)
+            val registrationRequest = RegistrationRequest(
+                RussiaPhoneNumber(phone),
+                Username(username),
+                Password(password)
+            )
             val registrationResponse = client.post("/register") {
                 setBody(registrationRequest)
             }.body<RegistrationResponse>()
             val signInResponse = client.post("/signin") {
-                setBody(SignInRequest(phone, password))
+                setBody(SignInRequest(
+                    RussiaPhoneNumber(phone),
+                    Password(password)
+                ))
             }
             return registrationResponse.user to signInResponse.headers["Authorization"]!!
         }
@@ -76,9 +90,10 @@ class ProfileControllerTest : FunSpec() {
                         setBody(multipartAvatarData)
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
-                    userService.getUserAvatar(user.phone)
-                        .getOrThrow()
-                        .readBytes() shouldBe avatarBytes
+                    userService.getUserAvatar(user.phone).leftOrNull() shouldNotBeNull {
+                        this.readBytes() shouldBe avatarBytes
+                    }
+
                 }
                 test("should respond Unauthorized if token invalid"){
                     val response = client.post("/user/avatar") {
@@ -96,7 +111,7 @@ class ProfileControllerTest : FunSpec() {
                         setBody(multipartAvatarData)
                     }
                     response shouldHaveStatus HttpStatusCode.BadRequest
-                    response.body<ErrorResponse>().message shouldContain "Invalid file format"
+                    response.body<ErrorResponse>().message shouldContain "Invalid avatar format"
                 }
                 test("should respond Bad request if filename empty"){
                     val multipartAvatarData = buildMultipartFromFile(
@@ -193,9 +208,9 @@ class ProfileControllerTest : FunSpec() {
                         headers.append("Authorization", userToken)
                     }
                     response shouldHaveStatus HttpStatusCode.OK
-                    shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
-                        userService.getUserAvatar(user.phone).getOrThrow()
-                    }
+
+                    userService.getUserAvatar(user.phone).rightOrNull() shouldBe FindUserAvatarException.UserAvatarNotFound()
+
                 }
                 test("should respond NotFound if user haven't avatar"){
                     client.delete("/user/avatar") {
@@ -276,7 +291,7 @@ class ProfileControllerTest : FunSpec() {
                     client.post("/user/changePassword") {
                         headers.append("Authorization", userToken)
                         setBody(changePasswordRequest)
-                    } shouldHaveStatus HttpStatusCode.BadRequest
+                    } shouldHaveStatus HttpStatusCode.Forbidden
                 }
             }
         }
@@ -286,7 +301,7 @@ class ProfileControllerTest : FunSpec() {
                 val (user,token) = createRegisterAndLoginUser()
                 test("should update user profile"){
                     val changeUserInfoRequest = ChangeUserInfoRequest(
-                        user = user.copy(username = "updated user name"),
+                        user = user.copy(username = Username("updated user name")),
                     )
                     val response = client.patch("/user"){
                         headers.append("Authorization", token)
@@ -294,25 +309,16 @@ class ProfileControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
                     val newUserInfo = response.body<UpdateUserInfoResponse>().user
-                    userService.getUser(user.phone).getOrThrow() shouldBe newUserInfo
+                    userService.getUser(user.phone).leftOrNull() shouldBe newUserInfo
                 }
-                test("should respond bad request if new user info invalid"){
+                test("should respond BadRequest if try to change phone"){
                     val changeUserInfoRequest = ChangeUserInfoRequest(
-                        user = user.copy(username = ""),
+                        user = user.copy(phone = RussiaPhoneNumber("89038518685"))
                     )
                     client.patch("/user"){
                         headers.append("Authorization", token)
                         setBody(changeUserInfoRequest)
                     } shouldHaveStatus HttpStatusCode.BadRequest
-                }
-                test("should respond not found if user phone not registered"){
-                    val changeUserInfoRequest = ChangeUserInfoRequest(
-                        user = user.copy(phone = "89038518685")
-                    )
-                    client.patch("/user"){
-                        headers.append("Authorization", token)
-                        setBody(changeUserInfoRequest)
-                    } shouldHaveStatus HttpStatusCode.NotFound
                 }
             }
         }
