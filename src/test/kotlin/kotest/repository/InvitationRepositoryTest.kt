@@ -64,7 +64,7 @@ class InvitationRepositoryTest : FunSpec({
             }
         }
         val project = suspendTransaction(database) {
-            projectRepository.insertProject(inviterUser.phone, "testProject")
+            projectRepository.insert(inviterUser.phone, "testProject")
         }
 
         context("insert"){

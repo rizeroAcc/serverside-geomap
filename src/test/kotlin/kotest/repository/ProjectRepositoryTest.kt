@@ -10,7 +10,6 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.Role
-import com.mapprjct.utils.toStringUUID
 import com.mapprjct.utils.toUUID
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
@@ -28,7 +27,6 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.testcontainers.containers.PostgreSQLContainer
-import java.util.UUID
 
 class ProjectRepositoryTest : FunSpec({
     val postgres = PostgreSQLContainer("postgres:latest")
@@ -73,7 +71,7 @@ class ProjectRepositoryTest : FunSpec({
         }
         test("should insert project and create record in ProjectUsersTable") {
             suspendTransaction {
-                val createdProject = projectRepository.insertProject(
+                val createdProject = projectRepository.insert(
                     testUser.phone,
                     "testProject"
                 )
@@ -103,7 +101,7 @@ class ProjectRepositoryTest : FunSpec({
         }
         test("should receive existing project") {
             suspendTransaction {
-                val createdProject = projectRepository.insertProject(
+                val createdProject = projectRepository.insert(
                     testUser.phone,
                     "testProject"
                 )
@@ -113,9 +111,9 @@ class ProjectRepositoryTest : FunSpec({
         test("should receive all user projects") {
             suspendTransaction {
                 val projectList = listOf(
-                    projectRepository.insertProject(testUser.phone,"testProject"),
-                    projectRepository.insertProject(testUser.phone,"testProject2"),
-                    projectRepository.insertProject(testUser.phone,"testProject3")
+                    projectRepository.insert(testUser.phone,"testProject"),
+                    projectRepository.insert(testUser.phone,"testProject2"),
+                    projectRepository.insert(testUser.phone,"testProject3")
                 )
                 projectRepository
                     .getAllUserProjects(testUser.phone)
@@ -142,7 +140,7 @@ class ProjectRepositoryTest : FunSpec({
             suspendTransaction {
                 val inviterPhone = testUser.phone
                 val invitableUserPhone = invitedUser.phone
-                val project = projectRepository.insertProject(inviterPhone,"testProject")
+                val project = projectRepository.insert(inviterPhone,"testProject")
                 //when
                 projectRepository.addMemberToProject(userPhone = invitableUserPhone,project = project,role = Role.Admin)
 

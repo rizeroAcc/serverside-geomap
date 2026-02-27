@@ -13,15 +13,18 @@ import com.mapprjct.exceptions.domain.project.FindProjectException
 import com.mapprjct.exceptions.domain.project.JoinProjectException
 import com.mapprjct.model.APISession
 import com.mapprjct.service.ProjectService
-import com.mapprjct.model.request.project.CreateProjectRequest
+import com.mapprjct.model.request.project.RegisterProjectRequest
 import com.mapprjct.model.request.project.CreateInvitationRequest
 import com.mapprjct.model.request.project.JoinProjectRequest
 import com.mapprjct.model.createInvitationResponseFromInvitation
-import com.mapprjct.model.response.project.CreateProjectResponse
+import com.mapprjct.model.response.project.RegisterProjectResponse
 import com.mapprjct.model.response.project.GetAllUserProjectsResponse
 import com.mapprjct.model.response.project.GetProjectResponse
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.ProjectRegistrationResult
+import com.mapprjct.model.request.project.RegisterProjectListRequest
+import com.mapprjct.model.response.project.RegisterProjectListResponse
 import com.mapprjct.service.InvitationService
 import com.mapprjct.utils.asRole
 import com.mapprjct.utils.fold
@@ -44,7 +47,8 @@ fun Application.configureProjectsController() {
     routing() {
         authenticate("auth-session") {
             route("/projects") {
-                createProject(projectService)
+                registerProject(projectService)
+                registerProjectList(projectService)
                 getProject(projectService)
                 getAllProjects(projectService)
                 inviteToProject(invitationService)
@@ -53,16 +57,46 @@ fun Application.configureProjectsController() {
         }
     }
 }
-fun Route.createProject(projectService: ProjectService) {
+fun Route.registerProject(projectService: ProjectService) {
     post("") {
         val session = call.principal<APISession>()!!
         val userPhone = RussiaPhoneNumber(session.phone)
-        val request = call.receive<CreateProjectRequest>()
-        projectService.createProject(
+        val request = call.receive<RegisterProjectRequest>()
+        projectService.registerProject(
             creatorPhone = userPhone,
-            projectName = request.projectName
+            unregisteredProject = request.project
         ).fold(
-            onSuccess = { result-> call.respond(status = HttpStatusCode.Created, message = CreateProjectResponse(result)) },
+            onSuccess = { result->
+                val responseBody = RegisterProjectResponse( registrationResult = ProjectRegistrationResult(project = result.first, oldID = result.second))
+                call.respond(status = HttpStatusCode.Created, message = responseBody)
+            },
+            onError = { error->
+                when (error) {
+                    is CreateProjectException.Database -> respondDatabaseError()
+                    is CreateProjectException.InvalidProjectName -> respondBadRequest(message = error.message)
+                    is CreateProjectException.Unexpected -> respondUnexpected()
+                    is CreateProjectException.UserNotFound -> respondUnexpected()
+                }
+            }
+        )
+    }
+}
+
+fun Route.registerProjectList(projectService: ProjectService) {
+    post("/registerAll") {
+        val session = call.principal<APISession>()!!
+        val userPhone = RussiaPhoneNumber(session.phone)
+        val request = call.receive<RegisterProjectListRequest>()
+        projectService.registerProjectList(
+            creatorPhone = userPhone,
+            unregisteredProjects = request.projects
+        ).fold(
+            onSuccess = { result->
+                call.respond(
+                    status = HttpStatusCode.Created,
+                    message = RegisterProjectListResponse(result.map { ProjectRegistrationResult(project = it.first, oldID = it.second) })
+                )
+            },
             onError = { error->
                 when (error) {
                     is CreateProjectException.Database -> respondDatabaseError()

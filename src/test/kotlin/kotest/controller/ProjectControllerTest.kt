@@ -7,7 +7,7 @@ import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.project.CreateInvitationRequest
-import com.mapprjct.model.request.project.CreateProjectRequest
+import com.mapprjct.model.request.project.RegisterProjectRequest
 import com.mapprjct.model.request.project.JoinProjectRequest
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.model.ErrorResponse
@@ -16,7 +16,7 @@ import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
 import com.mapprjct.model.response.project.CreateInvitationResponse
-import com.mapprjct.model.response.project.CreateProjectResponse
+import com.mapprjct.model.response.project.RegisterProjectResponse
 import com.mapprjct.model.response.project.GetAllUserProjectsResponse
 import com.mapprjct.model.response.project.GetProjectResponse
 import com.mapprjct.model.toInvitation
@@ -79,24 +79,24 @@ class ProjectControllerTest : FunSpec() {
                 val projectService = getBean<ProjectService>()
                 val (user,token) = createRegisterAndLoginUser()
                 test("should create new project"){
-                    val createProjectRequest = CreateProjectRequest(
+                    val registerProjectRequest = RegisterProjectRequest(
                         projectName = "test"
                     )
                     val response = client.post("/projects") {
                         headers.append("Authorization", token)
-                        setBody(createProjectRequest)
+                        setBody(registerProjectRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Created
-                    val project = response.body<CreateProjectResponse>().project
+                    val project = response.body<RegisterProjectResponse>().project
                     projectService.getProject(project.projectID).leftOrNull() shouldBe project
                 }
                 test("should respond BadRequest if project name empty"){
-                    val createProjectRequest = CreateProjectRequest(
+                    val registerProjectRequest = RegisterProjectRequest(
                         projectName = "   "
                     )
                     val response = client.post("/projects") {
                         headers.append("Authorization", token)
-                        setBody(createProjectRequest)
+                        setBody(registerProjectRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.BadRequest
                 }
@@ -107,8 +107,8 @@ class ProjectControllerTest : FunSpec() {
                 val (user,token) = createRegisterAndLoginUser()
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
-                    setBody(CreateProjectRequest("testProject"))
-                }.body<CreateProjectResponse>().project
+                    setBody(RegisterProjectRequest("testProject"))
+                }.body<RegisterProjectResponse>().project
                 test("should get project"){
                     val response = client.get("/projects/${project.projectID.value}") {
                         headers.append("Authorization", token)
@@ -137,8 +137,8 @@ class ProjectControllerTest : FunSpec() {
                 for(i in 1..5) {
                     val project = client.post("/projects") {
                         headers.append("Authorization", token)
-                        setBody(CreateProjectRequest("testProject$i"))
-                    }.body<CreateProjectResponse>().project
+                        setBody(RegisterProjectRequest("testProject$i"))
+                    }.body<RegisterProjectResponse>().project
                     projects.add(project)
                 }
                 test("should get all user projects"){
@@ -157,11 +157,11 @@ class ProjectControllerTest : FunSpec() {
             testKtorApp(postgres){
                 val invitationService = getBean<InvitationService>()
                 val (user,token) = createRegisterAndLoginUser(phone = "89036559989")
-                val createProjectRequest = CreateProjectRequest(projectName = "test")
+                val registerProjectRequest = RegisterProjectRequest(projectName = "test")
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
-                    setBody(createProjectRequest)
-                }.body<CreateProjectResponse>().project
+                    setBody(registerProjectRequest)
+                }.body<RegisterProjectResponse>().project
 
                 test("should create new invitation"){
                     val createInvitationRequest = CreateInvitationRequest(
@@ -243,11 +243,11 @@ class ProjectControllerTest : FunSpec() {
                 val projectRepository = getBean<ProjectRepository>()
                 val (user,token) = createRegisterAndLoginUser(phone = "89036559989")
                 val (secondUser, secondToken) = createRegisterAndLoginUser(phone = "89038518685")
-                val createProjectRequest = CreateProjectRequest(projectName = "test")
+                val registerProjectRequest = RegisterProjectRequest(projectName = "test")
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
-                    setBody(createProjectRequest)
-                }.body<CreateProjectResponse>().project
+                    setBody(registerProjectRequest)
+                }.body<RegisterProjectResponse>().project
 
                 test("should respond Forbidden if user haven't permission to add members"){
                     suspendTransaction {
@@ -275,8 +275,8 @@ class ProjectControllerTest : FunSpec() {
                 val (invitedUser,invitedUserToken) = createRegisterAndLoginUser(phone = "89038518685")
                 val project = client.post("/projects"){
                     headers.append("Authorization", token)
-                    setBody(CreateProjectRequest("test"))
-                }.body<CreateProjectResponse>().project
+                    setBody(RegisterProjectRequest("test"))
+                }.body<RegisterProjectResponse>().project
                 test("should join project"){
                     val invitationCode = invitationService.createInvitation(
                         user.phone,project.projectID, Role.Worker

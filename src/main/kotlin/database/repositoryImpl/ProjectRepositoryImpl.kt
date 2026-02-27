@@ -8,6 +8,7 @@ import com.mapprjct.model.dto.ProjectMembership
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.UnregisteredProject
 import com.mapprjct.utils.asRole
 import com.mapprjct.utils.toStringUUID
 import com.mapprjct.utils.toUUID
@@ -16,6 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.select
 import java.util.UUID
 
@@ -43,13 +45,13 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
                 )
             }
     }
-    override suspend fun insertProject(
+    override suspend fun insert(
         creatorPhone: RussiaPhoneNumber,
-        projectName: String
-    ): Project {
+        project: UnregisteredProject,
+    ): Pair<Project, StringUUID?> {
         val newProjectUUID = UUID.randomUUID()
         ProjectTable.insert {
-            it[ProjectTable.name] = projectName
+            it[ProjectTable.name] = project.name
             it[ProjectTable.id] = newProjectUUID
             it[ProjectTable.membersCount] = 1
         }
@@ -60,9 +62,29 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
         }
         return Project(
             projectID = newProjectUUID.toStringUUID(),
-            name = projectName,
+            name = project.name,
             membersCount = 1,
-        )
+        ) to project.oldID
+    }
+
+    override suspend fun insertAll(userPhone : RussiaPhoneNumber, projects: List<UnregisteredProject>) : List<Pair<Project, StringUUID?>>{
+        val insertedList = ProjectTable.batchInsert(projects) {
+            this[ProjectTable.id] = UUID.randomUUID()
+            this[ProjectTable.name] = it.name
+            this[ProjectTable.membersCount] = 1
+        }.mapIndexed { index,row->
+            Project(
+                projectID = row[ProjectTable.id].toStringUUID(),
+                name = row[ProjectTable.name],
+                membersCount = row[ProjectTable.membersCount].toInt(),
+            ) to projects[index].oldID
+        }
+        ProjectUsersTable.batchInsert(insertedList) {
+            this[ProjectUsersTable.userPhone] = userPhone.normalizeAsRussiaPhone()
+            this[ProjectUsersTable.role] = 1
+            this[ProjectUsersTable.projectId] = it.first.projectID.toUUID()
+        }
+        return insertedList
     }
 
     override suspend fun getProjectById(projectId: UUID): Project? {

@@ -4,6 +4,8 @@ import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectMembership
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.UnregisteredProject
 import java.util.UUID
 
 interface ProjectRepository {
@@ -15,7 +17,10 @@ interface ProjectRepository {
      * Create new project and insert record in ProjectUsersTable with Owner role
      * @throws java.sql.SQLIntegrityConstraintViolationException - if project name is empty string
      * */
-    suspend fun insertProject(creatorPhone : RussiaPhoneNumber, projectName: String) : Project
+    suspend fun insert(creatorPhone : RussiaPhoneNumber, project: UnregisteredProject) : Pair<Project, StringUUID?>
+
+    suspend fun insertAll(userPhone : RussiaPhoneNumber,projects: List<UnregisteredProject>) : List<Pair<Project, StringUUID?>>
+
     /**
      * Try to find project with ID
      *

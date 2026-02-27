@@ -11,13 +11,13 @@ import com.mapprjct.model.dto.Project
 import com.mapprjct.model.dto.ProjectMembership
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.UnregisteredProject
 import com.mapprjct.utils.Either
 import com.mapprjct.utils.toEither
 import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import java.util.UUID
 
 class ProjectService(
     val database: Database,
@@ -53,15 +53,15 @@ class ProjectService(
             }
         }
     }
-    suspend fun createProject(creatorPhone : RussiaPhoneNumber, projectName : String) : Either<Project, CreateProjectException>{
+    suspend fun registerProject(creatorPhone : RussiaPhoneNumber, unregisteredProject : UnregisteredProject) : Either<Pair<Project, StringUUID?>, CreateProjectException>{
         return runCatching {
-            if(projectName.isBlank()){
+            if(unregisteredProject.name.isBlank()){
                 throw CreateProjectException.InvalidProjectName("Project Name can't be blank")
             }
             suspendTransaction(database) {
                 userRepository.getUser(creatorPhone)
                     ?: throw CreateProjectException.UserNotFound(creatorPhone.value)
-                projectRepository.insertProject(creatorPhone, projectName)
+                projectRepository.insert(creatorPhone, unregisteredProject)
             }
         }.toEither { error ->
             when(error){
@@ -70,6 +70,26 @@ class ProjectService(
             }
         }
     }
+    suspend fun registerProjectList(creatorPhone: RussiaPhoneNumber, unregisteredProjects : List<UnregisteredProject>) : Either<List<Pair<Project, StringUUID?>>, CreateProjectException> {
+        return runCatching {
+            unregisteredProjects.forEach { project->
+                if (project.name.isBlank()){
+                    throw CreateProjectException.InvalidProjectName("Project Name can't be blank")
+                }
+            }
+            suspendTransaction(database) {
+                userRepository.getUser(creatorPhone)
+                    ?: throw CreateProjectException.UserNotFound(creatorPhone.value)
+                projectRepository.insertAll(creatorPhone, unregisteredProjects)
+            }
+        }.toEither { error->
+            when(error){
+                is ExposedSQLException -> CreateProjectException.Database(error)
+                else -> CreateProjectException.Unexpected(error)
+            }
+        }
+    }
+
     //TODO Уже по логике UseCase. Потом можно вынести
     suspend fun joinProject(userPhone: RussiaPhoneNumber, invitationCode : StringUUID) : Either<Project, JoinProjectException>{
         return runCatching {
