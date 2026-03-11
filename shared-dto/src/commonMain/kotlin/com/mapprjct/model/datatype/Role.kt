@@ -19,4 +19,7 @@ enum class Role {
             Worker -> 3
         }
     }
+    fun toInt() : Int {
+        return toShort().toInt()
+    }
 }
