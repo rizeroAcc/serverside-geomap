@@ -30,9 +30,12 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.postgresql)
     implementation(libs.h2)
+
     implementation(libs.exposed.core)
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.datetime)
+    implementation(libs.exposed.dao)
+
     implementation(libs.ktor.server.call.logging)
     implementation(libs.ktor.server.host.common)
     implementation(libs.ktor.server.request.validation)
