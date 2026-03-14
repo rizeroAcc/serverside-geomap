@@ -2,10 +2,8 @@
 
 package com.mapprjct.controller
 
-import com.mapprjct.controller.util.respondBadRequest
 import com.mapprjct.controller.util.respondConflict
 import com.mapprjct.controller.util.respondDatabaseError
-import com.mapprjct.controller.util.respondElementNotFound
 import com.mapprjct.controller.util.respondUnexpected
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
 import com.mapprjct.exceptions.domain.user.CredentialsValidationException
@@ -14,25 +12,27 @@ import com.mapprjct.exceptions.domain.user.UserCreationException
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession
-import com.mapprjct.model.ErrorResponse
 import com.mapprjct.model.response.auth.SignInResponse
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDto
 import com.mapprjct.model.response.auth.RegistrationResponse
+import com.mapprjct.model.response.profile.ChangePasswordResponse
 import com.mapprjct.service.UserService
 import com.mapprjct.utils.fold
 import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
-import io.ktor.server.request.ContentTransformationException
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.sessions.SessionStorage
+import io.ktor.server.sessions.clear
 import io.ktor.server.sessions.sessions
-import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.koin.ktor.ext.inject
 import kotlin.getValue
 import kotlin.time.Clock
@@ -42,6 +42,28 @@ fun Application.configureAuthenticationController() {
     val userService: UserService by inject()
     val sessionStorage : SessionStorage by inject()
     routing{
+        authenticate("auth-session") {
+            get("/validate_token"){
+                call.respond(HttpStatusCode.OK)
+            }
+            post("/refresh_token"){
+                val session = call.principal<APISession>()!!
+                val oldSessionId = call.request.headers["Authorization"]!!
+                call.sessions.clear<APISession>()
+                sessionStorage.invalidate(oldSessionId)
+                val newSession = APISession(
+                    phone = session.phone ,
+                    expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
+                )
+                //Костыль, но иначе ktor переиспользует SessionID
+                val newSessionID = (sessionStorage as PostgresSessionStorage).writeSession(newSession)
+                call.response.headers.append("Authorization", newSessionID)
+                call.respond(
+                    status = HttpStatusCode.OK,
+                    message = ChangePasswordResponse(newSession.expireAt)
+                )
+            }
+        }
         signInRoute(userService = userService, sessionStorage = sessionStorage)
         logOutRoute(sessionStorage)
         registrationRoute(userService)
