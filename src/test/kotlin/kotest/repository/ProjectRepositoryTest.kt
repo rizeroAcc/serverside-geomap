@@ -10,6 +10,7 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.dto.UnregisteredProject
 import com.mapprjct.utils.toUUID
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
@@ -73,20 +74,20 @@ class ProjectRepositoryTest : FunSpec({
             suspendTransaction {
                 val createdProject = projectRepository.insert(
                     testUser.phone,
-                    "testProject"
+                    UnregisteredProject(name = "testProject")
                 )
                 //check project created
                 ProjectTable.selectAll()
-                    .where { ProjectTable.id eq createdProject.projectID.toUUID() }
+                    .where { ProjectTable.id eq createdProject.first.projectID.toUUID() }
                     .single().let {row->
-                        row[ProjectTable.name] shouldBe createdProject.name
+                        row[ProjectTable.name] shouldBe createdProject.first.name
                         row[ProjectTable.membersCount] shouldBe 1.toShort()
                     }
                 //check record add to user-project table
                 ProjectUsersTable
                     .selectAll()
                     .single().let {row->
-                        row[ProjectUsersTable.projectId] shouldBe createdProject.projectID.toUUID()
+                        row[ProjectUsersTable.projectId] shouldBe createdProject.first.projectID.toUUID()
                         row[ProjectUsersTable.role] shouldBe Role.Owner.toShort()
                         row[ProjectUsersTable.userPhone] shouldBe testUser.phone.value
                     }
@@ -103,20 +104,20 @@ class ProjectRepositoryTest : FunSpec({
             suspendTransaction {
                 val createdProject = projectRepository.insert(
                     testUser.phone,
-                    "testProject"
+                    UnregisteredProject(name= "testProject")
                 )
-                projectRepository.getProjectById(createdProject.projectID.toUUID()) shouldBe createdProject
+                projectRepository.getProjectById(createdProject.first.projectID.toUUID()) shouldBe createdProject
             }
         }
         test("should receive all user projects") {
             suspendTransaction {
                 val projectList = listOf(
-                    projectRepository.insert(testUser.phone,"testProject"),
-                    projectRepository.insert(testUser.phone,"testProject2"),
-                    projectRepository.insert(testUser.phone,"testProject3")
+                    projectRepository.insert(testUser.phone,UnregisteredProject(name = "testProject")),
+                    projectRepository.insert(testUser.phone,UnregisteredProject(name = "testProject2")),
+                    projectRepository.insert(testUser.phone,UnregisteredProject(name = "testProject3"))
                 )
                 projectRepository
-                    .getAllUserProjects(testUser.phone)
+                    .findAllUserProjects(testUser.phone)
                     .map {it.project} shouldContainAll projectList
             }
         }
@@ -140,16 +141,16 @@ class ProjectRepositoryTest : FunSpec({
             suspendTransaction {
                 val inviterPhone = testUser.phone
                 val invitableUserPhone = invitedUser.phone
-                val project = projectRepository.insert(inviterPhone,"testProject")
+                val project = projectRepository.insert(inviterPhone, UnregisteredProject(name = "testProject"))
                 //when
-                projectRepository.addMemberToProject(userPhone = invitableUserPhone,project = project,role = Role.Admin)
+                projectRepository.addMemberToProject(userPhone = invitableUserPhone,project = project.first,role = Role.Admin)
 
-                projectRepository.getProjectById(project.projectID.toUUID())
+                projectRepository.getProjectById(project.first.projectID.toUUID())
                     .shouldNotBeNull()
                     .membersCount shouldBe 2
                 ProjectUsersTable.selectAll().where {
                     (ProjectUsersTable.userPhone eq invitableUserPhone.normalizeAsRussiaPhone())
-                        .and { ProjectUsersTable.projectId eq project.projectID.toUUID() }
+                        .and { ProjectUsersTable.projectId eq project.first.projectID.toUUID() }
                 }.singleOrNull() shouldNotBe null
             }
         }

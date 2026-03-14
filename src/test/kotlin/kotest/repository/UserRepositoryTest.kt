@@ -87,13 +87,13 @@ class UserRepositoryTest : FunSpec({
             val user = createTestUser()
             suspendTransaction(database) {
                 userRepository.insert(user, Password("testPassword"))
-                userRepository.getUser(user.phone) shouldBe user
+                userRepository.findUser(user.phone) shouldBe user
             }
         }
         test("should return null if user does not exist"){
             val unexistedUserPhone = RussiaPhoneNumber("89036559989")
             suspendTransaction(database) {
-                userRepository.getUser(unexistedUserPhone) shouldBe null
+                userRepository.findUser(unexistedUserPhone) shouldBe null
             }
         }
     }

@@ -38,13 +38,12 @@ class ProjectService(
             }
         }
     }
-
     suspend fun getAllUserProjects(userPhone : RussiaPhoneNumber): Either<List<ProjectMembership>, FindAllUserProjectsException>{
         return runCatching {
             suspendTransaction(database) {
-                userRepository.getUser(userPhone)
+                userRepository.findUser(userPhone)
                     ?: throw FindAllUserProjectsException.UserNotFound(userPhone.value)
-                projectRepository.getAllUserProjects(userPhone)
+                projectRepository.findAllUserProjects(userPhone)
             }
         }.toEither { error->
             when(error){
@@ -59,7 +58,7 @@ class ProjectService(
                 throw CreateProjectException.InvalidProjectName("Project Name can't be blank")
             }
             suspendTransaction(database) {
-                userRepository.getUser(creatorPhone)
+                userRepository.findUser(creatorPhone)
                     ?: throw CreateProjectException.UserNotFound(creatorPhone.value)
                 projectRepository.insert(creatorPhone, unregisteredProject)
             }
@@ -78,7 +77,7 @@ class ProjectService(
                 }
             }
             suspendTransaction(database) {
-                userRepository.getUser(creatorPhone)
+                userRepository.findUser(creatorPhone)
                     ?: throw CreateProjectException.UserNotFound(creatorPhone.value)
                 projectRepository.insertAll(creatorPhone, unregisteredProjects)
             }
@@ -123,7 +122,7 @@ class ProjectService(
      * @throws JoinProjectException.UserAlreadyProjectMember - if user already stay in project
      * */
     private suspend fun requireUserNotStayInProject(userPhone: RussiaPhoneNumber, projectID : String){
-        val userAlreadyStayInProject = projectRepository.getAllUserProjects(userPhone).map {
+        val userAlreadyStayInProject = projectRepository.findAllUserProjects(userPhone).map {
             it.project.projectID.value
         }.contains(projectID)
 

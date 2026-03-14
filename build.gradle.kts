@@ -49,6 +49,8 @@ dependencies {
     implementation("io.ktor:ktor-server-sessions:3.3.2")
     implementation("io.ktor:ktor-server-partial-content:3.3.2")
     implementation("io.ktor:ktor-server-status-pages:3.3.2")
+    implementation("io.arrow-kt:arrow-core:2.2.1.1")
+    implementation("io.arrow-kt:arrow-fx-coroutines:2.2.1.1")
     testImplementation("io.mockk:mockk:1.14.9")
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.testcontainers.postgresql)

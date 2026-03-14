@@ -10,4 +10,5 @@ object ProjectTable : Table("projects") {
     val name = varchar("name", 80).check { it.charLength() greater 0 }
     val membersCount = short("members_count")
     override val primaryKey = PrimaryKey(id)
+
 }

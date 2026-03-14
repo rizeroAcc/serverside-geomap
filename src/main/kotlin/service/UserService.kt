@@ -1,104 +1,105 @@
 package com.mapprjct.service
 
-import com.mapprjct.AppConfig
+import arrow.core.Either
+import arrow.core.getOrElse
+import arrow.core.raise.catch
+import arrow.core.raise.either
+import arrow.core.raise.ensure
+import arrow.core.raise.ensureNotNull
 import com.mapprjct.model.dto.User
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.storage.AvatarStorage
-import com.mapprjct.exceptions.NetworkInterruptedException
-import com.mapprjct.exceptions.domain.user.CredentialsValidationException
-import com.mapprjct.exceptions.domain.user.DeleteUserAvatarException
-import com.mapprjct.exceptions.domain.user.DeleteUserAvatarException.*
-import com.mapprjct.exceptions.domain.user.FindUserAvatarException
+import com.mapprjct.exceptions.domain.user.ValidateCredentialError
+import com.mapprjct.exceptions.domain.user.DeleteUserAvatarError
+import com.mapprjct.exceptions.domain.user.DeleteUserAvatarError.*
+import com.mapprjct.exceptions.domain.user.FindUserAvatarError
 import com.mapprjct.exceptions.domain.user.FindUserException
-import com.mapprjct.exceptions.domain.user.UpdateAvatarException
-import com.mapprjct.exceptions.domain.user.UpdateUserPasswordException
-import com.mapprjct.exceptions.domain.user.UserCreationException
-import com.mapprjct.exceptions.domain.user.UserUpdateException
+import com.mapprjct.exceptions.domain.user.UpdateAvatarError
+import com.mapprjct.exceptions.domain.user.UpdateUserPasswordError
+import com.mapprjct.exceptions.domain.user.CreateUserError
+import com.mapprjct.exceptions.domain.user.UpdateUserError
+import com.mapprjct.exceptions.storage.UpdateAvatarFileError
 import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
-import com.mapprjct.utils.Either
-import com.mapprjct.utils.getOrElse
-import com.mapprjct.utils.toEither
 import io.ktor.utils.io.ByteReadChannel
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.postgresql.util.PSQLState
 import java.io.File
-import java.io.FileNotFoundException
-import java.io.IOException
 
 class UserService(
     val userRepository: UserRepository,
     val avatarStorage: AvatarStorage,
     val database: Database,
 ) {
-    suspend fun createUser(userCredentials : UserCredentials, username : Username) : Either<User, UserCreationException> {
-        return runCatching {
-            suspendTransaction(database) {
-                val user = User(phone = userCredentials.phone, username = username)
-                userRepository.insert(user = user, password = userCredentials.password)
-                user
-            }
-        }.toEither { exception->
-            when(exception){
-                is ExposedSQLException -> {
-                    if (exception.sqlState == PSQLState.UNIQUE_VIOLATION.state){
-                        UserCreationException.UserAlreadyExists(userCredentials.phone.value)
-                    }else{
-                        UserCreationException.Database(exception)
-                    }
+    suspend fun createUser(userCredentials : UserCredentials, username : Username) : Either<CreateUserError,User> = either {
+        val user = User(phone = userCredentials.phone, username = username)
+        catch({
+                suspendTransaction {
+                    userRepository.insert(user = user, password = userCredentials.password)
+                    user
                 }
-                else -> UserCreationException.Unexpected(exception)
+            }
+        ){ ex ->
+            when (ex) {
+                is ExposedSQLException if ex.sqlState == PSQLState.UNIQUE_VIOLATION.state ->
+                    raise(CreateUserError.UserAlreadyExists(userCredentials.phone.value))
+                is ExposedSQLException -> raise(CreateUserError.Database(ex))
+                else -> raise(CreateUserError.Unexpected(ex))
             }
         }
     }
-    suspend fun validateCredentials(userCredentials : UserCredentials): Either<Boolean, CredentialsValidationException> {
-        return runCatching {
+    suspend fun validateCredentials(userCredentials : UserCredentials): Either<ValidateCredentialError, Boolean> = either{
+        catch({
+                suspendTransaction {
+                    val storedCredentials = userRepository.getUserCredentials(userCredentials.phone)
+                    storedCredentials != null && storedCredentials.password == userCredentials.password
+                }
+            }
+        ) { ex->
+            when {
+                ex is ExposedSQLException -> raise(ValidateCredentialError.Database(ex))
+                else -> raise(ValidateCredentialError.Unexpected(ex))
+            }
+        }
+    }
+    suspend fun getUser(userPhone : RussiaPhoneNumber) : Either<FindUserException, User> = either{
+        catch({
+                suspendTransaction {
+                    userRepository.findUser(userPhone) ?: raise(FindUserException.UserNotFound(userPhone.value))
+                }
+            }
+        ) { ex->
+            when {
+                ex is ExposedSQLException -> raise(FindUserException.Database(ex))
+                else -> raise(FindUserException.Unexpected(ex))
+            }
+        }
+
+    }
+    suspend fun updateUser(user : User) : Either<UpdateUserError, User> = either{
+        catch({
             suspendTransaction {
-                val storedCredentials = userRepository.getUserCredentials(userCredentials.phone)
-                storedCredentials != null && storedCredentials.password == userCredentials.password
+                userRepository.updateUser(user) ?: raise(UpdateUserError.UserNotFound(user.phone.value))
             }
-        }.toEither { exception->
-            when(exception){
-                is ExposedSQLException -> CredentialsValidationException.Database(exception)
-                else -> CredentialsValidationException.Unexpected(exception)
-            }
-        }
-    }
-    suspend fun getUser(userPhone : RussiaPhoneNumber) : Either<User, FindUserException>{
-        return runCatching {
-            suspendTransaction {
-                userRepository.getUser(userPhone) ?: throw FindUserException.UserNotFound(userPhone.value)
-            }
-        }.toEither { exception->
-            when(exception){
-                is ExposedSQLException -> FindUserException.Database(exception)
-                else -> FindUserException.Unexpected(exception)
+        }) { ex->
+            when {
+                ex is ExposedSQLException -> raise(UpdateUserError.Database(ex))
+                else -> raise(UpdateUserError.Unexpected(ex))
             }
         }
+
     }
-    suspend fun updateUser(user : User) : Either<User, UserUpdateException>{
-        return runCatching {
-            suspendTransaction {
-                userRepository.updateUser(user) ?: throw UserUpdateException.UserNotFound(user.phone.value)
-            }
-        }.toEither { error->
-            when(error){
-                is ExposedSQLException -> UserUpdateException.DatabaseError(error)
-                else -> UserUpdateException.Unexpected(error)
-            }
-        }
-    }
-    suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : Password) : Either<UserCredentials, UpdateUserPasswordException>{
-        return runCatching {
+    suspend fun updateUserPassword(oldCredentials: UserCredentials, newUserPassword : Password) : Either<UpdateUserPasswordError, UserCredentials> = either{
+        catch({
             suspendTransaction {
                 val userCredentials = userRepository.getUserCredentials(oldCredentials.phone)
-                    ?: throw UpdateUserPasswordException.UserNotFound(phone = oldCredentials.phone.value,)
+                    ?: raise(UpdateUserPasswordError.UserNotFound(oldCredentials.phone.value))
                 if (userCredentials.password != oldCredentials.password) {
-                    throw UpdateUserPasswordException.IncorrectPassword()
+                    raise(UpdateUserPasswordError.IncorrectPassword())
                 }
                 userRepository.updateUserPassword(
                     userPhone = oldCredentials.phone,
@@ -106,10 +107,10 @@ class UserService(
                 )
                 oldCredentials.copy(password = newUserPassword)
             }
-        }.toEither { error->
-            when(error){
-                is ExposedSQLException -> UpdateUserPasswordException.DatabaseError(error)
-                else -> UpdateUserPasswordException.Unexpected(error)
+        }){ ex->
+            when {
+                ex is ExposedSQLException -> raise(UpdateUserPasswordError.Database(ex))
+                else -> raise(UpdateUserPasswordError.Unexpected(ex))
             }
         }
     }
@@ -117,85 +118,63 @@ class UserService(
         user: User,
         fileName : String,
         fileDataChannelProvider : suspend ()-> ByteReadChannel,
-    ) : Either<User, UpdateAvatarException> = runCatching {
-        val fileExtension = fileName.substringAfterLast('.').lowercase()
-        if (!fileIsImage(fileName)) {
-            throw UpdateAvatarException.InvalidAvatarFormat(listOf(".jpg",".jpeg",".png"))
+    ) : Either<UpdateAvatarError, User> = either {
+        val allowedExtensions = listOf("jpg", "jpeg", "png")
+        ensure(fileName.substringAfterLast('.').lowercase() in allowedExtensions) {
+            UpdateAvatarError.InvalidAvatarFormat(allowedExtensions.map { ".$it" })
         }
+
 
         val avatarFileName = avatarStorage.saveOrReplaceUserAvatar(
             user = user,
-            fileExtension = fileExtension,
+            fileExtension = fileName.substringAfterLast('.').lowercase(),
             avatarByteProvider = fileDataChannelProvider
-        ).getOrThrow()
+        ).mapLeft { error->
+            when (error) {
+                UpdateAvatarFileError.ConnectionTerminated -> raise(UpdateAvatarError.ConnectionTerminated())
+                UpdateAvatarFileError.FilesystemError -> raise(UpdateAvatarError.FilesystemUnavailable())
+                is UpdateAvatarFileError.Unexpected -> raise(UpdateAvatarError.Unexpected(error.cause))
+            }
+        }.bind()
 
-        val updatedUser = updateUser(user = user.copy(avatarFilename = avatarFileName)).getOrElse { error ->
+        updateUser(user = user.copy(avatarFilename = avatarFileName)).mapLeft { error ->
             when(error){
-                is UserUpdateException.DatabaseError -> throw UpdateAvatarException.DatabaseError(error.exception)
-                is UserUpdateException.Unexpected -> throw UpdateAvatarException.Unexpected(error)
-                is UserUpdateException.UserNotFound -> throw UpdateAvatarException.UserNotFound(error.phone)
+                is UpdateUserError.Database -> raise (UpdateAvatarError.Database(error.exception))
+                is UpdateUserError.Unexpected -> raise (UpdateAvatarError.Unexpected(error))
+                is UpdateUserError.UserNotFound -> raise ( UpdateAvatarError.UserNotFound(error.phone))
             }
-        }
-
-        updatedUser
-    }.toEither { error->
-        when(error){
-            is IOException -> UpdateAvatarException.FilesystemUnavailable()
-            //TODO может переписать NetworkInterruptedException чтобы он хранил cause
-            is NetworkInterruptedException -> UpdateAvatarException.ConnectionTerminated()
-            is ExposedSQLException -> UpdateAvatarException.DatabaseError(error)
-            else -> UpdateAvatarException.Unexpected(error)
-        }
+        }.bind()
     }
-    suspend fun getUserAvatar(userPhone : RussiaPhoneNumber) : Either<File, FindUserAvatarException> {
-        return runCatching {
-            val user = getUser(userPhone).getOrElse { error->
+    suspend fun getUserAvatar(userPhone : RussiaPhoneNumber) : Either<FindUserAvatarError, File> = either {
+        val user = getUser(userPhone).mapLeft { error->
+            when (error) {
+                is FindUserException.UserNotFound -> raise(FindUserAvatarError.UserNotFound(userPhone.value))
+                is FindUserException.Database -> raise(FindUserAvatarError.Database(error.exception))
+                is FindUserException.Unexpected -> raise(FindUserAvatarError.Unexpected(error.cause))
+            }
+        }.bind()
+        user.avatarFilename ?: raise( FindUserAvatarError.UserAvatarNotFound())
+        avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()
+    }
+    suspend fun deleteUserAvatar(userPhone : RussiaPhoneNumber) : Either<DeleteUserAvatarError, User> = either {
+        val user = getUser(userPhone).mapLeft { error->
+            when (error) {
+                is FindUserException.UserNotFound -> raise(UserNotFound(userPhone.value))
+                is FindUserException.Database -> raise( Database(error.exception))
+                is FindUserException.Unexpected -> raise( Unexpected(error.cause))
+            }
+        }.bind()
+        val filename = ensureNotNull(user.avatarFilename) { UserAvatarNotFound() }
+        avatarStorage.deleteAvatar(user.avatarFilename!!).getOrThrow()
+        suspendTransaction(database) {
+            updateUser(user.copy(avatarFilename = null)).mapLeft { error ->
                 when (error) {
-                    is FindUserException.UserNotFound -> throw FindUserAvatarException.UserNotFound(userPhone.value)
-                    else -> throw error
+                    is UpdateUserError.Database -> raise(Database(error.exception))
+                    is UpdateUserError.Unexpected -> raise(Unexpected(error.cause))
+                    is UpdateUserError.UserNotFound -> raise(UserNotFound(userPhone.value))
                 }
             }
-            user.avatarFilename ?: throw FindUserAvatarException.UserAvatarNotFound()
-            avatarStorage.getUserAvatar(user.avatarFilename!!).getOrThrow()
-        }.toEither { error->
-            when (error){
-                is FileNotFoundException -> FindUserAvatarException.UserAvatarNotFound()
-                is ExposedSQLException -> FindUserAvatarException.DatabaseError(error)
-                else -> FindUserAvatarException.Unexpected(error)
-            }
+            user.copy(avatarFilename = null)
         }
-    }
-    suspend fun deleteUserAvatar(userPhone : RussiaPhoneNumber) : Either<User, DeleteUserAvatarException>{
-        return runCatching {
-            val user = getUser(userPhone).getOrElse { error->
-                when (error) {
-                    is FindUserException.UserNotFound -> throw UserNotFound(userPhone.value)
-                    is FindUserException.Database -> throw DatabaseError(error.exception)
-                    is FindUserException.Unexpected -> throw Unexpected(error.cause)
-                }
-            }
-            user.avatarFilename ?: throw UserAvatarNotFound()
-            suspendTransaction(database) {
-                updateUser(user.copy(avatarFilename = null)).getOrElse { error ->
-                    when (error) {
-                        is UserUpdateException.DatabaseError -> throw DatabaseError(error.exception)
-                        is UserUpdateException.Unexpected -> throw Unexpected(error.cause)
-                        is UserUpdateException.UserNotFound -> throw UserNotFound(userPhone.value)
-                    }
-                }
-                avatarStorage.deleteAvatar(user.avatarFilename!!).getOrThrow()
-                user.copy(avatarFilename = null)
-            }
-        }.toEither { error->
-            when (error){
-                is FileNotFoundException -> UserAvatarNotFound()
-                is IOException -> FileSystemUnavailable()
-                is ExposedSQLException -> DatabaseError(error)
-                else -> Unexpected(error)
-            }
-        }
-    }
-    private fun fileIsImage(filename : String) : Boolean {
-        return filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png")
     }
 }

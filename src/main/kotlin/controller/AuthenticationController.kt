@@ -2,13 +2,14 @@
 
 package com.mapprjct.controller
 
+import arrow.core.getOrElse
 import com.mapprjct.controller.util.respondConflict
 import com.mapprjct.controller.util.respondDatabaseError
 import com.mapprjct.controller.util.respondUnexpected
 import com.mapprjct.database.storage.impl.PostgresSessionStorage
-import com.mapprjct.exceptions.domain.user.CredentialsValidationException
+import com.mapprjct.exceptions.domain.user.ValidateCredentialError
 import com.mapprjct.exceptions.domain.user.FindUserException
-import com.mapprjct.exceptions.domain.user.UserCreationException
+import com.mapprjct.exceptions.domain.user.CreateUserError
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.auth.toUserCredentialsDTO
 import com.mapprjct.model.APISession
@@ -18,7 +19,6 @@ import com.mapprjct.model.request.auth.toUserCredentialsDto
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.model.response.profile.ChangePasswordResponse
 import com.mapprjct.service.UserService
-import com.mapprjct.utils.fold
 import com.mapprjct.utils.getOrElse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -82,8 +82,8 @@ private fun Routing.signInRoute(
             userCredentials = request.toUserCredentialsDTO()
         ).getOrElse { error->
             when (error) {
-                is CredentialsValidationException.Database -> respondDatabaseError()
-                is CredentialsValidationException.Unexpected -> respondUnexpected()
+                is ValidateCredentialError.Database -> respondDatabaseError()
+                is ValidateCredentialError.Unexpected -> respondUnexpected()
             }
             return@post
         }
@@ -142,16 +142,16 @@ private fun Routing.registrationRoute(userService : UserService){
             username = username
         )
         registrationResult.fold(
-            onSuccess = { user->
+            ifRight = { user->
                 call.respond(HttpStatusCode.Created,
                     RegistrationResponse(user)
                 )
             },
-            onError = { error->
+            ifLeft = { error->
                 when(error){
-                    is UserCreationException.Database -> respondDatabaseError()
-                    is UserCreationException.Unexpected -> respondUnexpected()
-                    is UserCreationException.UserAlreadyExists -> respondConflict("User with phone: ${error.phone} already registered")
+                    is CreateUserError.Database -> respondDatabaseError()
+                    is CreateUserError.Unexpected -> respondUnexpected()
+                    is CreateUserError.UserAlreadyExists -> respondConflict("User with phone: ${error.phone} already registered")
                 }
             }
         )

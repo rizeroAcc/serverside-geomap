@@ -1,8 +1,14 @@
 package com.mapprjct.database.storage.impl
 
+
+import arrow.core.Either
+import arrow.core.raise.catch
+import arrow.core.raise.either
+import arrow.core.raise.ensure
+import arrow.fx.coroutines.resourceScope
 import com.mapprjct.AppConfig
 import com.mapprjct.database.storage.AvatarStorage
-import com.mapprjct.exceptions.NetworkInterruptedException
+import com.mapprjct.exceptions.storage.UpdateAvatarFileError
 import com.mapprjct.model.dto.User
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.ByteReadChannel
@@ -13,7 +19,6 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.UUID
-import kotlin.coroutines.cancellation.CancellationException
 
 class FileAvatarStorage(
     appConfig: AppConfig
@@ -23,31 +28,40 @@ class FileAvatarStorage(
 
     override suspend fun saveOrReplaceUserAvatar(
         user: User,
-        fileExtension : String,
+        fileExtension: String,
         avatarByteProvider: suspend () -> ByteReadChannel
-    ): Result<String> {
+    ): Either<UpdateAvatarFileError, String> = either {
         val tempFile = File(uploadDir, "${user.phone}.tmp.${UUID.randomUUID()}")
         val newFileName = "${user.phone}.$fileExtension"
-        val oldAvatarPath = user.avatarFilename
+        val finalFile = File(uploadDir, newFileName)
 
-        return try {
-            withContext(Dispatchers.IO) {
-                avatarByteProvider().copyAndClose(tempFile.writeChannel())
+        // resourceScope гарантирует выполнение release-блока (удаление tempFile)
+        resourceScope {
+            install({ tempFile }) { file, _ -> file.delete() }
+
+            catch({
+                withContext(Dispatchers.IO) {
+                    // Копируем данные во временный файл
+                    avatarByteProvider().copyAndClose(tempFile.writeChannel())
+                }
+
+                // Удаляем старый аватар (если есть)
+                user.avatarFilename?.let { oldName ->
+                    removeOldAvatarIfExists(uploadDir, oldName)
+                }
+
+                // Переименовываем временный файл в финальный
+                ensure(tempFile.renameTo(finalFile)) {
+                    UpdateAvatarFileError.FilesystemError
+                }
+
+                newFileName
+            }) { ex ->
+                when (ex) {
+                    is IOException -> raise(UpdateAvatarFileError.FilesystemError)
+                    else -> raise(UpdateAvatarFileError.ConnectionTerminated)
+                }
             }
-            removeOldAvatarIfExists(uploadDir,oldAvatarPath)
-            val finalFile = File(uploadDir, newFileName)
-            if(!tempFile.renameTo(finalFile)){
-                throw IOException("Failed to rename temp → final: ${tempFile.path}")
-            }
-            Result.success(newFileName)
-        }catch (e : Throwable) {
-            when(e){
-                is CancellationException -> throw e
-                is IOException -> Result.failure(e)
-                else -> Result.failure(NetworkInterruptedException("Receive file failed because connection terminated"))
-            }
-        } finally {
-            tempFile.delete()
         }
     }
 

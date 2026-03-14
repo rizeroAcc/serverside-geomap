@@ -1,8 +1,9 @@
 package com.mapprjct.kotest.controller
 
+import arrow.core.rightIor
 import com.mapprjct.*
 import com.mapprjct.builders.createCredentials
-import com.mapprjct.exceptions.domain.user.FindUserAvatarException
+import com.mapprjct.exceptions.domain.user.FindUserAvatarError
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
@@ -16,11 +17,9 @@ import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
-import com.mapprjct.utils.leftOrNull
 import com.mapprjct.utils.rightOrNull
 import io.kotest.assertions.ktor.client.shouldHaveContentType
 import io.kotest.assertions.ktor.client.shouldHaveStatus
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
@@ -90,7 +89,7 @@ class ProfileControllerTest : FunSpec() {
                         setBody(multipartAvatarData)
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
-                    userService.getUserAvatar(user.phone).leftOrNull() shouldNotBeNull {
+                    userService.getUserAvatar(user.phone).getOrNull() shouldNotBeNull {
                         this.readBytes() shouldBe avatarBytes
                     }
 
@@ -209,7 +208,7 @@ class ProfileControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    userService.getUserAvatar(user.phone).rightOrNull() shouldBe FindUserAvatarException.UserAvatarNotFound()
+                    userService.getUserAvatar(user.phone).getOrNull() shouldBe FindUserAvatarError.UserAvatarNotFound()
 
                 }
                 test("should respond NotFound if user haven't avatar"){

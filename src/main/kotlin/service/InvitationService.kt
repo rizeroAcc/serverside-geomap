@@ -9,7 +9,6 @@ import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.utils.Either
-import com.mapprjct.utils.asRole
 import com.mapprjct.utils.toEither
 import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
@@ -89,8 +88,8 @@ class InvitationService(
         inviterPhone: RussiaPhoneNumber,
         projectID: String
     ) {
-        val userMembership = projectRepository.getAllUserProjects(inviterPhone)
-            .singleOrNull { it.project.projectID.value == projectID }
+        val userMembership = projectRepository
+            .findUserMembershipInProject(inviterPhone, UUID.fromString(projectID))
         if (userMembership != null) {
             //check user have permission to add members
             val currentRole = userMembership.role

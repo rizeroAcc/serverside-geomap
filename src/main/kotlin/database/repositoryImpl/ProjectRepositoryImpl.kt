@@ -12,6 +12,7 @@ import com.mapprjct.model.dto.UnregisteredProject
 import com.mapprjct.utils.asRole
 import com.mapprjct.utils.toStringUUID
 import com.mapprjct.utils.toUUID
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -22,8 +23,31 @@ import org.jetbrains.exposed.v1.jdbc.select
 import java.util.UUID
 
 class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
+    override suspend fun findUserMembershipInProject(
+        userPhone: RussiaPhoneNumber,
+        projectID: UUID
+    ): ProjectMembership? {
+        return ProjectUsersTable.select(
+            ProjectTable.id,
+            ProjectTable.name,
+            ProjectTable.membersCount,
+            ProjectUsersTable.role
+        ).where{
+            (ProjectUsersTable.userPhone eq userPhone.value) and
+                    (ProjectUsersTable.projectId eq projectID)
+        }.singleOrNull()?.let { resultRow ->
+            return ProjectMembership(
+                project = Project(
+                    projectID = resultRow[ProjectTable.id].toStringUUID(),
+                    name = resultRow[ProjectTable.name],
+                    membersCount = resultRow[ProjectTable.membersCount].toInt(),
+                ),
+                role = resultRow[ProjectUsersTable.role].asRole()
+            )
+        }
+    }
 
-    override suspend fun getAllUserProjects(userPhone: RussiaPhoneNumber): List<ProjectMembership> {
+    override suspend fun findAllUserProjects(userPhone: RussiaPhoneNumber): List<ProjectMembership> {
         return (ProjectUsersTable innerJoin ProjectTable)
             .select(
                 ProjectTable.id,

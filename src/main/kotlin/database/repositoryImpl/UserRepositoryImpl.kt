@@ -6,6 +6,7 @@ import com.mapprjct.model.dto.UserCredentials
 import com.mapprjct.model.dto.User
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
+import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.model.datatype.Username
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
@@ -26,7 +27,7 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
         }
     }
 
-    override suspend fun getUser(phone : RussiaPhoneNumber) : User?{
+    override suspend fun findUser(phone : RussiaPhoneNumber) : User?{
         return UserTable
                 .selectAll()
                 .where {UserTable.phone eq phone.normalizeAsRussiaPhone()}
@@ -46,11 +47,14 @@ class UserRepositoryImpl(val database: Database) : UserRepository {
     }
 
 
-    override suspend fun updateUserPassword(userPhone : RussiaPhoneNumber, password: Password): Int {
-        return UserTable.update(
+    override suspend fun updateUserPassword(userPhone : RussiaPhoneNumber, password: Password): Password? {
+        return UserTable.updateReturning(
+            returning = listOf(UserTable.passwordHash),
             where = { UserTable.phone eq userPhone.normalizeAsRussiaPhone() }
         ) {
             it[UserTable.passwordHash] = password.value
+        }.singleOrNull()?.let { resultRow->
+            Password(resultRow[UserTable.passwordHash])
         }
     }
 

@@ -48,11 +48,11 @@ class AuthenticationControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Created
                     response.body<RegistrationResponse>() shouldBe RegistrationResponse(user)
-                    userService.getUser(user.phone) shouldBe Either.success(
+                    userService.getUser(user.phone).getOrNull() shouldBe
                         user.copy(
                             phone = RussiaPhoneNumber(user.phone.normalizeAsRussiaPhone())
                         )
-                    )
+
                 }
                 test("should respond 409 if user already registered"){
                     val user = createTestUser { phone = "89038518685" }

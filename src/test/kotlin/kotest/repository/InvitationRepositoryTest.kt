@@ -11,6 +11,7 @@ import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.Role
+import com.mapprjct.model.dto.UnregisteredProject
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
@@ -64,7 +65,7 @@ class InvitationRepositoryTest : FunSpec({
             }
         }
         val project = suspendTransaction(database) {
-            projectRepository.insert(inviterUser.phone, "testProject")
+            projectRepository.insert(inviterUser.phone, UnregisteredProject(name = "testProject"))
         }
 
         context("insert"){
@@ -72,7 +73,7 @@ class InvitationRepositoryTest : FunSpec({
                 suspendTransaction(database) {
                     val invitation = createInvitation {
                         fromInviter(inviterUser)
-                        toProject(project)
+                        toProject(project.first)
                         withRole(Role.Worker)
                     }
                     invitationRepository.insertInvitation(invitation)
@@ -94,7 +95,7 @@ class InvitationRepositoryTest : FunSpec({
                 suspendTransaction(database) {
                     val insertedInvitation = createInvitation {
                         fromInviter(inviterUser)
-                        toProject(project)
+                        toProject(project.first)
                         withRole(Role.Worker)
                     }.also{
                         invitationRepository.insertInvitation(it) shouldBe 1
@@ -113,7 +114,7 @@ class InvitationRepositoryTest : FunSpec({
                 suspendTransaction {
                     val invitation = createInvitation {
                         fromInviter(inviterUser)
-                        toProject(project)
+                        toProject(project.first)
                         withRole(Role.Worker)
                     }
                     invitationRepository.insertInvitation(invitation) shouldBe 1
