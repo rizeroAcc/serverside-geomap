@@ -26,12 +26,10 @@ fun main(args: Array<String>) {
 
 fun Application.module(startMode: ApplicationStartMode = ApplicationStartMode.DEBUG) {
     configureKoin(startMode)
-
     configureSecurity()
     configurePlugins()
     configureAuthenticationController()
     configureProjectsController()
     configureProfileController()
-
     configureDBTables(clearTables = startMode is ApplicationStartMode.TEST)
 }

@@ -1,6 +1,6 @@
 package com.mapprjct.model.request.auth
 
-import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.model.dto.UserCredentialsDTO
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import kotlinx.serialization.Serializable
@@ -11,8 +11,8 @@ data class SignInRequest(
     val password: Password
 )
 
-fun SignInRequest.toUserCredentialsDTO() : UserCredentials {
-    return UserCredentials(
+fun SignInRequest.toUserCredentialsDTO() : UserCredentialsDTO {
+    return UserCredentialsDTO(
         phone = phone,
         password = password,
     )

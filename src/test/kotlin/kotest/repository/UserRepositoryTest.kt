@@ -54,27 +54,24 @@ class UserRepositoryTest : FunSpec({
         val validPassword = Password("validPassword")
         test("should insert user") {
             val user = createTestUser()
-            val normalizedPhone = user.phone.normalizeAsRussiaPhone()
             suspendTransaction(database) {
-                userRepository.insert(user, validPassword)
+                userRepository.insert(user, validPassword) shouldBe user
             }
+            //check user pass saved
             transaction(database) {
-                val row = UserTable.selectAll()
-                    .where { UserTable.phone eq normalizedPhone }
+                UserTable.selectAll()
+                    .where { UserTable.phone eq user.phone.normalizeAsRussiaPhone() }
                     .single()
-
-                row[UserTable.phone] shouldBe normalizedPhone
-                row[UserTable.username] shouldBe user.username.value
-                row[UserTable.passwordHash] shouldBe validPassword.value
-                row[UserTable.avatar] shouldBe user.avatarFilename
+                    .also {
+                        it[UserTable.passwordHash] shouldBe validPassword.value
+                    }
             }
         }
         test("should throw unique constraint violation if user already exists") {
-            val user = createTestUser()
-
+            val user = createTestUser().also {
+                suspendTransaction(database) { userRepository.insert(it, validPassword) }
+            }
             suspendTransaction(database) {
-                userRepository.insert(user, validPassword)
-
                 shouldThrow<ExposedSQLException> {
                     userRepository.insert(user, validPassword)
                 }.sqlState shouldBe PSQLState.UNIQUE_VIOLATION.state
@@ -82,11 +79,12 @@ class UserRepositoryTest : FunSpec({
         }
     }
 
-    context("get user"){
+    context("find user"){
         test("should receive existing user") {
-            val user = createTestUser()
+            val user = createTestUser().also {
+                suspendTransaction { userRepository.insert(it, Password("testPassword")) }
+            }
             suspendTransaction(database) {
-                userRepository.insert(user, Password("testPassword"))
                 userRepository.findUser(user.phone) shouldBe user
             }
         }
@@ -98,19 +96,27 @@ class UserRepositoryTest : FunSpec({
         }
     }
     context("update user"){
-        test("should update user fields except phone and password") {
-            val user = createTestUser()
+        test("should update user fields except phone") {
+            createTestUser().also {
+                suspendTransaction(database) { userRepository.insert(it, Password("testPassword")) }
+            }
             val updatedUserInfo = createTestUser {
                 username = "updatedUserName"
                 avatarFilename = "updatedUserAvatarFilename"
             }
             suspendTransaction(database) {
-                userRepository.insert(user, Password("testPassword"))
                 userRepository.updateUser(updatedUserInfo) shouldBe updatedUserInfo
             }
         }
+        test("should return null if updatable user does not exist"){
+            val user = createTestUser()
+            suspendTransaction(database) {
+                userRepository.updateUser(user) shouldBe null
+            }
+        }
+    }
+    context("update password"){
         test("should update user password"){
-            //given
             val password = Password("testPassword")
             val newPassword = Password("newPassword")
             val user = createTestUser {
@@ -119,11 +125,14 @@ class UserRepositoryTest : FunSpec({
             }
             suspendTransaction(database) {
                 userRepository.insert(user, password)
-                //when
-                userRepository.updateUserPassword(userPhone = user.phone, password = newPassword)
-                userRepository.getUserCredentials(user.phone) shouldNotBeNull {
-                    this.password shouldBe newPassword
-                }
+                userRepository.updateUserPassword(userPhone = user.phone, password = newPassword) shouldBe newPassword
+            }
+        }
+        test("should return null if updatable user does not exist"){
+            val unregisteredUser = createTestUser()
+            val newPassword = Password("newPassword")
+            suspendTransaction {
+                userRepository.updateUserPassword(unregisteredUser.phone, newPassword) shouldBe null
             }
         }
     }

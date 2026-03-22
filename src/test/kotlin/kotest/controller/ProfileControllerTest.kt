@@ -1,10 +1,9 @@
 package com.mapprjct.kotest.controller
 
-import arrow.core.rightIor
 import com.mapprjct.*
 import com.mapprjct.builders.createCredentials
 import com.mapprjct.exceptions.domain.user.FindUserAvatarError
-import com.mapprjct.model.dto.User
+import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.profile.ChangePasswordRequest
@@ -17,7 +16,6 @@ import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
-import com.mapprjct.utils.rightOrNull
 import io.kotest.assertions.ktor.client.shouldHaveContentType
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.extensions.install
@@ -51,7 +49,7 @@ class ProfileControllerTest : FunSpec() {
             phone : String = "+79036559989",
             username : String = "admin",
             password : String = "testPassword"
-        ) : Pair<User,String>{
+        ) : Pair<UserDTO,String>{
             val registrationRequest = RegistrationRequest(
                 RussiaPhoneNumber(phone),
                 Username(username),
@@ -66,7 +64,7 @@ class ProfileControllerTest : FunSpec() {
                     Password(password)
                 ))
             }
-            return registrationResponse.user to signInResponse.headers["Authorization"]!!
+            return registrationResponse.userDTO to signInResponse.headers["Authorization"]!!
         }
 
         beforeContainer {
@@ -131,7 +129,7 @@ class ProfileControllerTest : FunSpec() {
                         setBody(multipartAvatarData)
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
-                    val filename = response.body<AvatarUpdateResponse>().user.avatarFilename!!
+                    val filename = response.body<AvatarUpdateResponse>().userDTO.avatarFilename!!
                     val avatarFile = File(getBean<AppConfig>().avatarResourcePath + filename)
                     //lock file
                     RandomAccessFile(avatarFile, "rw").use{ randomAccessFile ->
@@ -208,7 +206,7 @@ class ProfileControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    userService.getUserAvatar(user.phone).getOrNull() shouldBe FindUserAvatarError.UserAvatarNotFound()
+                    userService.getUserAvatar(user.phone).getOrNull() shouldBe FindUserAvatarError.UserAvatarNotFound
 
                 }
                 test("should respond NotFound if user haven't avatar"){
@@ -226,7 +224,7 @@ class ProfileControllerTest : FunSpec() {
                         headers.append("Authorization", token)
                     }
                     response shouldHaveStatus HttpStatusCode.OK
-                    response.body<User>() shouldBe user
+                    response.body<UserDTO>() shouldBe user
                 }
                 test("should have status Unauthorized"){
                     val response = client.get("/user") {
@@ -300,19 +298,19 @@ class ProfileControllerTest : FunSpec() {
                 val (user,token) = createRegisterAndLoginUser()
                 test("should update user profile"){
                     val changeUserInfoRequest = ChangeUserInfoRequest(
-                        user = user.copy(username = Username("updated user name")),
+                        userDTO = user.copy(username = Username("updated user name")),
                     )
                     val response = client.patch("/user"){
                         headers.append("Authorization", token)
                         setBody(changeUserInfoRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
-                    val newUserInfo = response.body<UpdateUserInfoResponse>().user
+                    val newUserInfo = response.body<UpdateUserInfoResponse>().userDTO
                     userService.getUser(user.phone).leftOrNull() shouldBe newUserInfo
                 }
                 test("should respond BadRequest if try to change phone"){
                     val changeUserInfoRequest = ChangeUserInfoRequest(
-                        user = user.copy(phone = RussiaPhoneNumber("89038518685"))
+                        userDTO = user.copy(phone = RussiaPhoneNumber("89038518685"))
                     )
                     client.patch("/user"){
                         headers.append("Authorization", token)

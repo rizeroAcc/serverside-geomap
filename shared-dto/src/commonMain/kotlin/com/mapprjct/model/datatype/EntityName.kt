@@ -5,8 +5,11 @@ import kotlin.jvm.JvmInline
 
 @Serializable
 @JvmInline
-value class EntityName(val value: String) {
-    init {
-        require(value.isNotBlank()) { "Name must not be empty." }
+value class EntityName private constructor(val value: String) {
+    companion object{
+        operator fun invoke(value: String): EntityName {
+            require(value.isNotBlank()) { "Name must not be empty." }
+            return EntityName(value)
+        }
     }
 }

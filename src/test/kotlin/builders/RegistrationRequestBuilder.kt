@@ -1,6 +1,6 @@
 package com.mapprjct.builders
 
-import com.mapprjct.model.dto.User
+import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.datatype.Password
 import java.util.UUID
@@ -10,11 +10,11 @@ fun createRegistrationRequest(block : RegistrationRequestBuilder.()->Unit ): Reg
 }
 
 class RegistrationRequestBuilder {
-    var user : User? = null
+    var userDTO : UserDTO? = null
     var password : String = UUID.randomUUID().toString()
 
-    fun forUser(user : User) {
-        this.user = user
+    fun forUser(userDTO : UserDTO) {
+        this.userDTO = userDTO
     }
     fun withPassword(password: String) {
         this.password = password
@@ -22,8 +22,8 @@ class RegistrationRequestBuilder {
 
     fun build(): RegistrationRequest {
         return RegistrationRequest(
-            phone = user?.phone ?: throw NullPointerException("User is null"),
-            username = user?.username ?: throw NullPointerException("User is null"),
+            phone = userDTO?.phone ?: throw NullPointerException("User is null"),
+            username = userDTO?.username ?: throw NullPointerException("User is null"),
             password = Password(password)
         )
     }

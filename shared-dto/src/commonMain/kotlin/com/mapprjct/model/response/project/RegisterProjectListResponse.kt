@@ -1,14 +1,13 @@
 package com.mapprjct.model.response.project
 
-import com.mapprjct.model.datatype.StringUUID
-import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.ProjectRegistrationResult
+import com.mapprjct.model.dto.ProjectDTO
+import com.mapprjct.model.dto.ProjectRegistrationResultDTO
 import kotlinx.serialization.Serializable
 
 /**
- * Represents registered projects list where first is [Project], and second old project ID (if was sent)
+ * Represents registered projects list where first is [ProjectDTO], and second old project ID (if was sent)
  * */
 @Serializable
 data class RegisterProjectListResponse(
-    val registeredProjects: List<ProjectRegistrationResult>
+    val registeredProjects: List<ProjectRegistrationResultDTO>
 )

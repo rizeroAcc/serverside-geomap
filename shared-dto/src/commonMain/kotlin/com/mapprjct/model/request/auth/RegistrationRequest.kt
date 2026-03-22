@@ -1,6 +1,6 @@
 package com.mapprjct.model.request.auth
 
-import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.model.dto.UserCredentialsDTO
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
@@ -13,8 +13,8 @@ data class RegistrationRequest(
     val password: Password,
 )
 
-fun RegistrationRequest.toUserCredentialsDto() : UserCredentials {
-    return UserCredentials(
+fun RegistrationRequest.toUserCredentialsDto() : UserCredentialsDTO {
+    return UserCredentialsDTO(
         phone = phone,
         password = password
     )

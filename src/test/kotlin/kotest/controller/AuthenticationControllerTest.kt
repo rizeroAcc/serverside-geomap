@@ -4,12 +4,10 @@ import com.mapprjct.builders.createRegistrationRequest
 import com.mapprjct.builders.createTestUser
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
-import com.mapprjct.model.dto.User
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.response.auth.RegistrationResponse
 import com.mapprjct.service.UserService
 import com.mapprjct.testKtorApp
-import com.mapprjct.utils.Either
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow

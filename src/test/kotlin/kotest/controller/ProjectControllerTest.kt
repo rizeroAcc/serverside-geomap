@@ -2,8 +2,8 @@ package com.mapprjct.kotest.controller
 
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.getBean
-import com.mapprjct.model.dto.Project
-import com.mapprjct.model.dto.User
+import com.mapprjct.model.dto.ProjectDTO
+import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.model.request.auth.RegistrationRequest
 import com.mapprjct.model.request.auth.SignInRequest
 import com.mapprjct.model.request.project.CreateInvitationRequest
@@ -15,7 +15,7 @@ import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
-import com.mapprjct.model.dto.UnregisteredProject
+import com.mapprjct.model.dto.UnregisteredProjectDTO
 import com.mapprjct.model.response.project.CreateInvitationResponse
 import com.mapprjct.model.response.project.RegisterProjectResponse
 import com.mapprjct.model.response.project.GetAllUserProjectsResponse
@@ -24,7 +24,6 @@ import com.mapprjct.model.toInvitation
 import com.mapprjct.service.InvitationService
 import com.mapprjct.service.ProjectService
 import com.mapprjct.testKtorApp
-import com.mapprjct.utils.leftOrNull
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
@@ -57,7 +56,7 @@ class ProjectControllerTest : FunSpec() {
             phone : String = "89036559989",
             username : String = "admin",
             password : String = "testPassword"
-        ) : Pair<User,String>{
+        ) : Pair<UserDTO,String>{
             val registrationRequest = RegistrationRequest(
                 RussiaPhoneNumber(phone),
                 Username(username),
@@ -72,7 +71,7 @@ class ProjectControllerTest : FunSpec() {
                     Password(password)
                 ))
             }
-            return registrationResponse.user to signInResponse.headers["Authorization"]!!
+            return registrationResponse.userDTO to signInResponse.headers["Authorization"]!!
         }
 
         context("create project"){
@@ -81,19 +80,19 @@ class ProjectControllerTest : FunSpec() {
                 val (user,token) = createRegisterAndLoginUser()
                 test("should create new project"){
                     val registerProjectRequest = RegisterProjectRequest(
-                        UnregisteredProject(name = "projectName")
+                        UnregisteredProjectDTO(name = "projectName")
                     )
                     val response = client.post("/projects") {
                         headers.append("Authorization", token)
                         setBody(registerProjectRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Created
-                    val project = response.body<RegisterProjectResponse>().registrationResult.project
+                    val project = response.body<RegisterProjectResponse>().registrationResult.projectDTO
                     projectService.getProject(project.projectID).leftOrNull() shouldBe project
                 }
                 test("should respond BadRequest if project name empty"){
                     val registerProjectRequest = RegisterProjectRequest(
-                        UnregisteredProject(name = "    ")
+                        UnregisteredProjectDTO(name = "    ")
                     )
                     val response = client.post("/projects") {
                         headers.append("Authorization", token)
@@ -108,14 +107,14 @@ class ProjectControllerTest : FunSpec() {
                 val (user,token) = createRegisterAndLoginUser()
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
-                    setBody(RegisterProjectRequest(UnregisteredProject(name = "testProject")))
-                }.body<RegisterProjectResponse>().registrationResult.project
+                    setBody(RegisterProjectRequest(UnregisteredProjectDTO(name = "testProject")))
+                }.body<RegisterProjectResponse>().registrationResult.projectDTO
                 test("should get project"){
                     val response = client.get("/projects/${project.projectID.value}") {
                         headers.append("Authorization", token)
                     }
                     response shouldHaveStatus HttpStatusCode.OK
-                    response.body<GetProjectResponse>().project shouldBe project
+                    response.body<GetProjectResponse>().projectDTO shouldBe project
                 }
                 test("should respond BadRequest if project id invalid"){
                     val invalidUUID = UUID.randomUUID().toString().replace("-","")
@@ -134,13 +133,13 @@ class ProjectControllerTest : FunSpec() {
         context("get all user projects"){
             testKtorApp(postgres){
                 val (user,token) = createRegisterAndLoginUser()
-                val projects = mutableListOf<Project>()
+                val projectDTOS = mutableListOf<ProjectDTO>()
                 for(i in 1..5) {
                     val project = client.post("/projects") {
                         headers.append("Authorization", token)
-                        setBody(RegisterProjectRequest(UnregisteredProject(name = "testProject$i")))
-                    }.body<RegisterProjectResponse>().registrationResult.project
-                    projects.add(project)
+                        setBody(RegisterProjectRequest(UnregisteredProjectDTO(name = "testProject$i")))
+                    }.body<RegisterProjectResponse>().registrationResult.projectDTO
+                    projectDTOS.add(project)
                 }
                 test("should get all user projects"){
                     val response = client.get("/projects/all") {
@@ -149,8 +148,8 @@ class ProjectControllerTest : FunSpec() {
                     response shouldHaveStatus HttpStatusCode.OK
                     response.body<GetAllUserProjectsResponse>()
                         .result.map {
-                            it.project
-                        } shouldContainAll projects
+                            it.projectDTO
+                        } shouldContainAll projectDTOS
                 }
             }
         }
@@ -158,11 +157,11 @@ class ProjectControllerTest : FunSpec() {
             testKtorApp(postgres){
                 val invitationService = getBean<InvitationService>()
                 val (user,token) = createRegisterAndLoginUser(phone = "89036559989")
-                val registerProjectRequest = RegisterProjectRequest(UnregisteredProject(name = "test"))
+                val registerProjectRequest = RegisterProjectRequest(UnregisteredProjectDTO(name = "test"))
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
                     setBody(registerProjectRequest)
-                }.body<RegisterProjectResponse>().registrationResult.project
+                }.body<RegisterProjectResponse>().registrationResult.projectDTO
 
                 test("should create new invitation"){
                     val createInvitationRequest = CreateInvitationRequest(
@@ -244,11 +243,11 @@ class ProjectControllerTest : FunSpec() {
                 val projectRepository = getBean<ProjectRepository>()
                 val (user,token) = createRegisterAndLoginUser(phone = "89036559989")
                 val (secondUser, secondToken) = createRegisterAndLoginUser(phone = "89038518685")
-                val registerProjectRequest = RegisterProjectRequest(UnregisteredProject(name = "test"))
+                val registerProjectRequest = RegisterProjectRequest(UnregisteredProjectDTO(name = "test"))
                 val project = client.post("/projects") {
                     headers.append("Authorization", token)
                     setBody(registerProjectRequest)
-                }.body<RegisterProjectResponse>().registrationResult.project
+                }.body<RegisterProjectResponse>().registrationResult.projectDTO
 
                 test("should respond Forbidden if user haven't permission to add members"){
                     suspendTransaction {
@@ -276,21 +275,21 @@ class ProjectControllerTest : FunSpec() {
                 val (invitedUser,invitedUserToken) = createRegisterAndLoginUser(phone = "89038518685")
                 val project = client.post("/projects"){
                     headers.append("Authorization", token)
-                    setBody(RegisterProjectRequest(UnregisteredProject(name = "test")))
-                }.body<RegisterProjectResponse>().registrationResult.project
+                    setBody(RegisterProjectRequest(UnregisteredProjectDTO(name = "test")))
+                }.body<RegisterProjectResponse>().registrationResult.projectDTO
                 test("should join project"){
                     val invitationCode = invitationService.createInvitation(
                         user.phone,project.projectID, Role.Worker
-                    ).leftOrNull()!!.inviteCode
+                    ).getOrNull()!!.inviteCode
                     val response = client.post("/projects/join"){
                         headers.append("Authorization", invitedUserToken)
                         setBody(JoinProjectRequest(invitationCode.toString()))
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
                     projectService.getAllUserProjects(invitedUser.phone)
-                        .leftOrNull()!!
+                        .getOrNull()!!
                         .map {
-                            it.project.projectID
+                            it.projectDTO.projectID
                         } shouldContain project.projectID
                 }
                 test("should respond Not Found if invitation not found"){
@@ -310,7 +309,7 @@ class ProjectControllerTest : FunSpec() {
                 test("should respond Conflict if user already project member"){
                     val invitation = invitationService.createInvitation(
                         user.phone,project.projectID, Role.Worker
-                    ).leftOrNull()!!
+                    ).getOrNull()!!
                     client.post("/projects/join"){
                         headers.append("Authorization", token)
                         setBody(JoinProjectRequest(invitation.inviteCode.toString()))

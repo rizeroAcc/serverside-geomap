@@ -1,229 +1,434 @@
 package com.mapprjct.kotest.service
 
-import com.mapprjct.AppConfig
-import com.mapprjct.builders.createCredentials
+import arrow.core.Either
+import arrow.core.left
+import arrow.core.right
+import com.google.gson.annotations.Expose
 import com.mapprjct.builders.createTestUser
+import com.mapprjct.com.mapprjct.utils.BypassTransactionProvider
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.storage.AvatarStorage
-import com.mapprjct.database.storage.impl.FileAvatarStorage
-import com.mapprjct.database.tables.UserTable
-import com.mapprjct.di.repositoryModule
-import com.mapprjct.di.serviceModule
-import com.mapprjct.di.storageModule
+import com.mapprjct.exceptions.domain.user.CreateUserError
+import com.mapprjct.exceptions.domain.user.DeleteUserAvatarError
+import com.mapprjct.exceptions.domain.user.FindUserAvatarError
+import com.mapprjct.exceptions.domain.user.FindUserException
+import com.mapprjct.exceptions.domain.user.UpdateAvatarError
+import com.mapprjct.exceptions.domain.user.UpdateUserError
+import com.mapprjct.exceptions.domain.user.UpdateUserPasswordError
+import com.mapprjct.exceptions.domain.user.ValidateCredentialError
+import com.mapprjct.exceptions.storage.UpdateAvatarFileError
 import com.mapprjct.model.datatype.Password
-import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
-import com.mapprjct.model.dto.User
-import com.mapprjct.model.dto.UserCredentials
+import com.mapprjct.model.dto.UserCredentialsDTO
+import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.service.UserService
-import com.mapprjct.utils.Either
-import io.kotest.assertions.asClue
-import io.kotest.assertions.throwables.shouldNotThrowAny
-import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.core.extensions.install
+import io.kotest.assertions.arrow.core.shouldBeLeft
+import io.kotest.assertions.arrow.core.shouldBeRight
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.extensions.testcontainers.TestContainerSpecExtension
-import io.kotest.koin.KoinExtension
-import io.kotest.koin.KoinLifecycleMode
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
-import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.toByteArray
+import io.mockk.Runs
+import io.mockk.clearMocks
 import io.mockk.coEvery
-import io.mockk.coJustRun
+import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
-import org.jetbrains.exposed.v1.core.Transaction
-import org.jetbrains.exposed.v1.core.eq
+import io.mockk.slot
+import kotlinx.io.IOException
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.jdbc.deleteAll
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.koin.dsl.module
 import org.koin.test.KoinTest
-import org.koin.test.inject
 import org.postgresql.util.PSQLState
-import org.testcontainers.containers.PostgreSQLContainer
 import java.io.File
 import java.sql.SQLException
 
-class UserServiceTest : KoinTest, FunSpec(){
-//    init {
-//        context("create user") {
-//            test("should create user with valid info"){
-//                val userService = UserService(
-//                    userRepository = mockk(),
-//                    avatarStorage = mockk(),
-//                    database = mockk()
-//                )
-//                val phone = RussiaPhoneNumber("89036559989")
-//                val password = Password("12345678")
-//                val credentials = UserCredentials(phone, password)
-//                val username = Username("myUser")
-//                userService.createUser(userCredentials = credentials, username = username) shouldBe Either.success(User(phone,username,null))
-//            }
-//            test("should return UserAlreadyExists"){
-//                val userService = UserService(
-//                    userRepository = mockk(){
-//                        coEvery { insert(any(),any()) } throws ExposedSQLException(
-//                            cause = SQLException("reason", PSQLState.UNIQUE_VIOLATION.state),
-//                        )
-//                    },
-//                    avatarStorage = mockk(),
-//                    database = mockk()
-//                )
-//            }
-//        }
-//        context("credentials validation"){
-//            test("should return true if credentials are valid"){
-//                val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//                val validCredentials = userCredentials.copy()
-//                userService.validateCredentials(validCredentials).getOrThrow() shouldBe true
-//            }
-//            test("should return false if credentials are invalid"){
-//                val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//                val invalidCredentials = userCredentials.copy(password = "87654321")
-//                userService.validateCredentials(invalidCredentials).getOrThrow() shouldBe false
-//            }
-//        }
-//        context("get user"){
-//            test("should return existing user"){
-//                val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//                userService.getUser(user.phone).getOrThrow() shouldBe user
-//            }
-//            test("should return UserNotFoundException user doesn't exists"){
-//                val unregisteredUserPhone = "89038518685"
-//                shouldThrow<UserDMLExceptions.UserNotFoundException> {
-//                    userService.getUser(unregisteredUserPhone).getOrThrow()
-//                }
-//            }
-//        }
-//        context("update user"){
-//            test("should update user"){
-//                val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//
-//                val updatedUser = user.copy(username = "new_test", avatarFilename = "path")
-//                userService.updateUser(updatedUser).getOrThrow() shouldBe updatedUser
-//            }
-//            test("should update user password"){val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//                val newCredentials = userCredentials.copy(password = "new_password")
-//                userService.updateUserPassword(
-//                    oldCredentials = userCredentials,
-//                    newUserPassword = newCredentials.password,
-//                )
-//                userService.validateCredentials(newCredentials).getOrThrow() shouldBe true
-//            }
-//            test("should return IllegalArgumentException if old password incorrect"){val user = createTestUser {  }
-//                val userCredentials = UserCredentials(user.phone, "12345678")
-//                userService.createUser(userCredentials = userCredentials, username = user.username)
-//                val newCredentials = userCredentials.copy(password = "new_password")
-//                shouldThrow<IllegalArgumentException>{
-//                    userService.updateUserPassword(
-//                        oldCredentials = newCredentials,
-//                        newUserPassword = newCredentials.password
-//                    ).getOrThrow()
-//                }
-//            }
-//            test("should return UserNotFoundException if user not found"){
-//                val credentials = UserCredentials("89036559989", "12345678")
-//                val newCredentials = credentials.copy(password = "new_password")
-//                shouldThrow<UserDMLExceptions.UserNotFoundException> {
-//                    userService.updateUserPassword(
-//                        oldCredentials = newCredentials,
-//                        newUserPassword = newCredentials.password,
-//                    ).getOrThrow()
-//                }
-//            }
-//        }
-//        context("update avatar"){
-//            test("should update user avatar"){
-//                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
-//                val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
-//
-//                val updatedUser = userService.updateUserAvatar(
-//                    user = user,
-//                    fileName = "AppLogo.png",
-//                    fileDataChannelProvider = { testAvatarData },
-//                ) shouldNotBe null
-//
-//                val providedFileBytes = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel().toByteArray()
-//                val savedAvatarFileBytes = File(
-//                    avatarStorage.getUploadDirectory(),
-//                    updatedUser.getOrNull()!!.avatarFilename!!
-//                ).readBytes() shouldBe providedFileBytes
-//            }
-//            test("should return IllegalArgumentException if file is not image"){
-//                val user = userService.createUser(
-//                    userCredentials = UserCredentials("89036559989", "12345678"),
-//                    username = "test"
-//                ).getOrThrow()
-//                shouldThrow<IllegalArgumentException>{
-//                    userService.updateUserAvatar(
-//                        user = user,
-//                        fileName = "AppLogo.html",
-//                        fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) },
-//                    ).getOrThrow()
-//                }
-//            }
-//        }
-//        context("get avatar"){
-//            test("should get user avatar"){
-//                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
-//                val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
-//                val updatedUser = userService.updateUserAvatar(
-//                    user = user,
-//                    fileName = "AppLogo.png",
-//                    fileDataChannelProvider = { testAvatarData },
-//                ).getOrThrow()
-//                userService.getUserAvatar(user.phone).getOrThrow().asClue {
-//                    it.exists() shouldBe true
-//                    it.name shouldBe updatedUser.avatarFilename
-//                    it.canRead() shouldBe true
-//                }
-//            }
-//            test("should return UserAvatarNotFound if user hasn't avatar"){
-//                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
-//                shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
-//                    userService.getUserAvatar(user.phone).getOrThrow()
-//                }
-//            }
-//        }
-//        context("delete avatar"){
-//            test("should delete avatar"){
-//                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
-//                val testAvatarData = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.toByteReadChannel()
-//                val updatedUser = userService.updateUserAvatar(
-//                    user = user,
-//                    fileName = "AppLogo.png",
-//                    fileDataChannelProvider = { testAvatarData },
-//                ).getOrThrow()
-//                shouldNotThrowAny {
-//                    userService.deleteUserAvatar(updatedUser).getOrThrow()
-//                }
-//                shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
-//                    userService.getUserAvatar(user.phone).getOrThrow()
-//                }
-//            }
-//            test("should return UserAvatarNotFound if user hasn't avatar"){
-//                val user = userService.createUser(UserCredentials("89036559989", "12345678"), "test").getOrThrow()
-//                shouldThrow<UserDMLExceptions.UserAvatarNotFoundException> {
-//                    userService.deleteUserAvatar(user).getOrThrow()
-//                }
-//            }
-//        }
-//    }
+class UserServiceTest : FunSpec(){
+    val userRepo = mockk<UserRepository>()
+    val avatarStorage = mockk<AvatarStorage>()
+    val userService = UserService(
+        userRepository = userRepo,
+        avatarStorage = avatarStorage,
+        transactionProvider = BypassTransactionProvider(),
+    )
+    val password = Password("password")
+    val userDTO = createTestUser {  }
+
+    init {
+
+        beforeEach {
+            clearMocks(userRepo, answers = true, recordedCalls = true, verificationMarks = true)
+            clearMocks(avatarStorage, answers = true, recordedCalls = true, verificationMarks = true)
+        }
+
+        context("create user") {
+            val credentials = UserCredentialsDTO(userDTO.phone, password)
+            test("should create user with valid info"){
+                coEvery { userRepo.insert(any(), any()) } returns userDTO
+
+                userService.createUser(userCredentialsDTO = credentials, username = userDTO.username) shouldBeRight userDTO
+
+                coVerify(exactly = 1) {
+                    userRepo.insert(
+                        userDTO = eq(userDTO),
+                        password = eq(password)
+                    )
+                }
+            }
+            test("should return UserAlreadyExists error on Unique violation"){
+                val uniqueViolationException = ExposedSQLException(SQLException("reason", PSQLState.UNIQUE_VIOLATION.state),emptyList(),mockk())
+                coEvery { userRepo.insert(any(), any()) } throws uniqueViolationException
+
+                userService.createUser(userCredentialsDTO = credentials, username = userDTO.username) shouldBeLeft CreateUserError.UserAlreadyExists(userDTO.phone.value)
+                coVerify(exactly = 1) {
+                    userRepo.insert(
+                        userDTO = withArg { insertedUser ->
+                            insertedUser.phone shouldBe userDTO.phone
+                            insertedUser.username shouldBe userDTO.username
+                            insertedUser.avatarFilename shouldBe null
+                        },
+                        password = eq(password)
+                    )
+                }
+            }
+            test("should return Database error on ExposedSQLException"){
+                val exposedException = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.insert(any(), any()) } throws exposedException
+
+                userService.createUser(userCredentialsDTO = credentials, username = userDTO.username) shouldBeLeft CreateUserError.Database(exposedException)
+                coVerify(exactly = 1) {
+                    userRepo.insert(
+                        userDTO = eq(userDTO),
+                        password = eq(password)
+                    )
+                }
+            }
+            test("should return Unexpected error on Throwable"){
+                coEvery { userRepo.insert(any(), any()) } throws Throwable()
+                userService.createUser(userCredentialsDTO = credentials, username = userDTO.username) shouldBeLeft CreateUserError.Unexpected(Throwable())
+                coVerify(exactly = 1) {
+                    userRepo.insert(
+                        userDTO = eq(userDTO),
+                        password = eq(password)
+                    )
+                }
+            }
+        }
+        context("credentials validation"){
+
+            val validCredentials = UserCredentialsDTO(userDTO.phone, password)
+            val invalidPassword = Password(password.value.plus("foo"))
+            val invalidCredentials = UserCredentialsDTO(userDTO.phone, invalidPassword)
+
+            test("should return true if credentials are valid"){
+                coEvery { userRepo.getUserCredentials(validCredentials.phone) } returns validCredentials
+                userService.validateCredentials(validCredentials) shouldBeRight  true
+                coVerify(exactly = 1) {
+                    userRepo.getUserCredentials(
+                        phone = eq(userDTO.phone)
+                    )
+                }
+            }
+            test("should return false if credentials are invalid"){
+                coEvery { userRepo.getUserCredentials(any()) } returns validCredentials
+                userService.validateCredentials(invalidCredentials) shouldBeRight false
+                coVerify(exactly = 1) { userRepo.getUserCredentials(phone = eq(validCredentials.phone)) }
+            }
+            test("should return Database error on ExposedSQLException"){
+                val databaseException = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.getUserCredentials(any()) } throws databaseException
+                userService.validateCredentials(invalidCredentials) shouldBeLeft ValidateCredentialError.Database(databaseException)
+                coVerify(exactly = 1) { userRepo.getUserCredentials(phone = eq(validCredentials.phone)) }
+            }
+            test("should return Unexpected error on any throwable"){
+                val exception = Throwable()
+                coEvery { userRepo.getUserCredentials(any()) } throws exception
+                userService.validateCredentials(invalidCredentials) shouldBeLeft ValidateCredentialError.Unexpected(exception)
+                coVerify(exactly = 1) { userRepo.getUserCredentials(phone = eq(invalidCredentials.phone)) }
+            }
+        }
+        context("get user"){
+            test("should return existing user"){
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                userService.getUser(userDTO.phone) shouldBeRight userDTO
+                coVerify(exactly = 1) {
+                    userRepo.findUser(phone = eq(userDTO.phone))
+                }
+            }
+            test("should return UserNotFoundException user doesn't exists"){
+                coEvery { userRepo.findUser(any()) } returns null
+                userService.getUser(userDTO.phone) shouldBeLeft FindUserException.UserNotFound(userDTO.phone.value)
+                coVerify(exactly = 1) {
+                    userRepo.findUser(phone = eq(userDTO.phone))
+                }
+            }
+            test("should return Database error on ExposedSQLException"){
+                val databaseException = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.findUser(any()) } throws databaseException
+                userService.getUser(userDTO.phone) shouldBeLeft FindUserException.Database(databaseException)
+                coVerify(exactly = 1) { userRepo.findUser(phone = eq(userDTO.phone)) }
+            }
+            test("should return Unexpected error on any throwable"){
+                val exception = Throwable()
+                coEvery { userRepo.findUser(any()) } throws exception
+                userService.getUser(userDTO.phone) shouldBeLeft FindUserException.Unexpected(exception)
+                coVerify(exactly = 1) { userRepo.findUser(phone = eq(userDTO.phone)) }
+            }
+        }
+        context("update"){
+            context("user info"){
+                test("should update user"){
+                    val updatedUser = userDTO.copy(username = Username("new_test"), avatarFilename = "path")
+                    coEvery { userRepo.updateUser(any()) } returns updatedUser
+                    userService.updateUser(updatedUser) shouldBeRight updatedUser
+                    coVerify(exactly = 1) { userRepo.updateUser(eq(updatedUser)) }
+                }
+                test("should return UserNotFound if update returns null"){
+                    coEvery { userRepo.updateUser(any()) } returns null
+                    userService.updateUser(userDTO) shouldBeLeft UpdateUserError.UserNotFound(userDTO.phone.value)
+                    coVerify(exactly = 1) { userRepo.updateUser(eq(userDTO)) }
+                }
+                test("should return Database error on ExposedSQLException"){
+                    val databaseException = ExposedSQLException(null,emptyList(),mockk())
+                    coEvery { userRepo.updateUser(any()) } throws databaseException
+                    userService.updateUser(userDTO) shouldBeLeft UpdateUserError.Database(databaseException)
+                    coVerify(exactly = 1) { userRepo.updateUser(eq(userDTO)) }
+                }
+                test("should return Unexpected error on any throwable"){
+                    val exception = Throwable()
+                    coEvery { userRepo.updateUser(any()) } throws exception
+                    userService.updateUser(userDTO) shouldBeLeft UpdateUserError.Unexpected(exception)
+                    coVerify(exactly = 1) { userRepo.updateUser(eq(userDTO)) }
+                }
+            }
+            context("password"){
+                val validCredentials = UserCredentialsDTO(userDTO.phone, password)
+                val newCredentials = validCredentials.copy(password = Password("new_password"))
+                test("should update user password"){
+                    coEvery { userRepo.getUserCredentials(any()) } returns validCredentials
+                    coEvery { userRepo.updateUserPassword(any(),any()) } returns newCredentials.password
+                    userService.updateUserPassword(
+                        oldCredentials = validCredentials,
+                        newUserPassword = newCredentials.password
+                    ) shouldBeRight newCredentials
+                    coVerify(exactly = 1) {
+                        userRepo.updateUserPassword(
+                            userPhone = eq(validCredentials.phone),
+                            password = eq(newCredentials.password)
+                        )
+                    }
+                }
+                test("should return InvalidPassword if old password incorrect"){
+                    val invalidCredentials = validCredentials.copy(password = Password("invalid_password"))
+                    coEvery { userRepo.getUserCredentials(any()) } returns validCredentials
+                    userService.updateUserPassword(
+                        oldCredentials = invalidCredentials,
+                        newUserPassword = newCredentials.password
+                    ) shouldBeLeft UpdateUserPasswordError.IncorrectPassword()
+                    coVerify(exactly = 0) {
+                        userRepo.updateUserPassword(any(),any())
+                    }
+                }
+                test("should return UserNotFoundException if user credentials not found"){
+                    coEvery { userRepo.getUserCredentials(any()) } returns null
+                    userService.updateUserPassword(
+                        oldCredentials = validCredentials,
+                        newUserPassword = newCredentials.password
+                    ) shouldBeLeft UpdateUserPasswordError.UserNotFound(validCredentials.phone.value)
+                    coVerify(exactly = 0) {
+                        userRepo.updateUserPassword(any(),any())
+                    }
+                }
+                test("should return Database error on ExposedSQLException"){
+                    val databaseException = ExposedSQLException(null,emptyList(),mockk())
+                    coEvery { userRepo.getUserCredentials(any()) } returns validCredentials
+                    coEvery { userRepo.updateUserPassword(any(),any()) } throws databaseException
+                    userService.updateUserPassword(
+                        oldCredentials = validCredentials,
+                        newUserPassword = newCredentials.password
+                    ) shouldBeLeft UpdateUserPasswordError.Database(databaseException)
+                }
+                test("should return Unexpected error on any throwable"){
+                    val exception = Throwable()
+                    coEvery { userRepo.getUserCredentials(any()) } throws exception
+                    userService.updateUserPassword(
+                        oldCredentials = validCredentials,
+                        newUserPassword = newCredentials.password
+                    ) shouldBeLeft UpdateUserPasswordError.Unexpected(exception)
+                    coVerify(exactly = 0) { userRepo.updateUserPassword(any(),any()) }
+                }
+            }
+        }
+        context("update avatar"){
+            test("should update user avatar"){
+                val avatarBytes = ClassLoader.getSystemResourceAsStream("avatar/AppLogo.png")!!.readAllBytes()
+                val testAvatarData = ByteReadChannel(avatarBytes)
+                val expectedUserDTO = userDTO.copy(avatarFilename = "new_avatar.png")
+                val byteProviderSlot = slot<suspend ()-> ByteReadChannel>()
+                coEvery { avatarStorage.saveOrReplaceUserAvatar(any(),any(),capture(byteProviderSlot)) } returns "new_avatar.png".right()
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery { userRepo.getUserCredentials(any()) } returns UserCredentialsDTO(userDTO.phone,password)
+                coEvery { userRepo.updateUser(any()) } answers { firstArg<UserDTO>() }
+
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { testAvatarData },
+                ) shouldBeRight expectedUserDTO
+
+                coVerify(exactly = 1) {
+                    avatarStorage.saveOrReplaceUserAvatar(
+                        userDTO = eq(userDTO),
+                        fileExtension = eq(".png"),
+                        avatarByteProvider = eq(byteProviderSlot.captured)
+                    )
+                }
+                coVerify(exactly = 1) {
+                    userRepo.updateUser(
+                        userDTO = eq(userDTO.copy(avatarFilename = "new_avatar.png"))
+                    )
+                }
+                byteProviderSlot.captured().toByteArray() shouldBe avatarBytes
+            }
+            test("should return InvalidAvatarFormat if file is not image"){
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.html",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.InvalidAvatarFormat(userService.getAllowedAvatarFormats())
+            }
+            test("should return UserNotFound if user not found"){
+                coEvery { userRepo.findUser(any()) } returns null
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.UserNotFound(userDTO.phone.value)
+            }
+            test("should return FilesystemUnavailable on filesystem error"){
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery { avatarStorage.saveOrReplaceUserAvatar(any(),any(),any()) } returns Either.Left(UpdateAvatarFileError.FilesystemError)
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.FilesystemUnavailable
+            }
+            test("should return ConnectionTerminated on connection terminated"){
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery { avatarStorage.saveOrReplaceUserAvatar(any(),any(),any()) } returns Either.Left(UpdateAvatarFileError.ConnectionTerminated)
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.ConnectionTerminated
+            }
+            test("should return Database error on ExposedSqlException"){
+                val databaseError = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery { avatarStorage.saveOrReplaceUserAvatar(any(),any(),any()) } returns Either.Right("new_avatar.png")
+                coEvery { userRepo.updateUser(any()) } throws databaseError
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.Database(databaseError)
+            }
+            test("should return Unexpected on storage unknown exception"){
+                val exception = Throwable()
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery {
+                    avatarStorage.saveOrReplaceUserAvatar(any(),any(),any())
+                } returns Either.Left(UpdateAvatarFileError.Unexpected(exception))
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.Unexpected(exception)
+            }
+            test("should return Unexpected on unknown exception"){
+                val exception = Throwable()
+                coEvery { userRepo.findUser(any()) } returns userDTO
+                coEvery { avatarStorage.saveOrReplaceUserAvatar(any(),any(),any()) } returns Either.Right("new_avatar.png")
+                coEvery { userRepo.updateUser(any()) } throws exception
+                userService.updateUserAvatar(
+                    userDTO = userDTO,
+                    fileName = "AppLogo.png",
+                    fileDataChannelProvider = { ByteReadChannel(ByteArray(5)) }
+                ) shouldBeLeft UpdateAvatarError.Unexpected(exception)
+            }
+        }
+        context("get avatar"){
+            val dtoWithoutAvatar = userDTO.copy()
+            val dtoWithAvatar = userDTO.copy(avatarFilename = "AppLogo.png")
+            test("should get user avatar"){
+                val avatarFile = File("avatar/AppLogo.png")
+                coEvery { userRepo.findUser(any()) } returns dtoWithAvatar
+                coEvery { avatarStorage.getUserAvatar(any()) } returns avatarFile.right()
+                userService.getUserAvatar(dtoWithAvatar.phone) shouldBeRight avatarFile
+                coVerify(exactly = 1) { avatarStorage.getUserAvatar(any()) }
+            }
+            test("should return UserNotFound if user not found"){
+                coEvery { userRepo.findUser(any()) } returns null
+                userService.getUserAvatar(userDTO.phone) shouldBeLeft FindUserAvatarError.UserNotFound(userDTO.phone.value)
+                coVerify(exactly = 0) { avatarStorage.getUserAvatar(any()) }
+            }
+            test("should return AvatarNotFound if user hasn't avatar"){
+                coEvery { userRepo.findUser(any()) } returns dtoWithoutAvatar
+                userService.getUserAvatar(userDTO.phone) shouldBeLeft FindUserAvatarError.UserAvatarNotFound
+                coVerify(exactly = 0) { avatarStorage.getUserAvatar(any()) }
+            }
+            test("should return Database error on ExposedSqlException"){
+                val databaseError = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.findUser(any()) } throws databaseError
+                userService.getUserAvatar(userDTO.phone) shouldBeLeft FindUserAvatarError.Database(databaseError)
+                coVerify(exactly = 0) { avatarStorage.getUserAvatar(any()) }
+            }
+            test("should return Unexpected on unexpected exception"){
+                val exception = Throwable()
+                coEvery { userRepo.findUser(any()) } throws exception
+                userService.getUserAvatar(userDTO.phone) shouldBeLeft FindUserAvatarError.Unexpected(exception)
+                coVerify(exactly = 0) { avatarStorage.getUserAvatar(any()) }
+            }
+        }
+        context("delete avatar"){
+            val dtoWithoutAvatar = userDTO.copy()
+            val dtoWithAvatar = userDTO.copy(avatarFilename = "AppLogo.png")
+            test("should delete avatar"){
+                coEvery { userRepo.findUser(any()) } returns dtoWithAvatar
+                coEvery { avatarStorage.deleteAvatar(any()) } returns Unit.right()
+                coEvery { userRepo.updateUser(any()) } answers { firstArg<UserDTO>() }
+                userService.deleteUserAvatar(dtoWithAvatar.phone) shouldBeRight dtoWithoutAvatar
+                coVerify(exactly = 1) { avatarStorage.deleteAvatar(any()) }
+            }
+            test("should return UserNotFound if user not found"){
+                coEvery { userRepo.findUser(any()) } returns null
+                userService.deleteUserAvatar(userDTO.phone) shouldBeLeft DeleteUserAvatarError.UserNotFound
+                coVerify(exactly = 0) { avatarStorage.deleteAvatar(any()) }
+            }
+            test("should return UserAvatarNotFound if user hasn't avatar"){
+                coEvery { userRepo.findUser(any()) } returns dtoWithoutAvatar
+                userService.deleteUserAvatar(dtoWithoutAvatar.phone) shouldBeLeft DeleteUserAvatarError.UserAvatarNotFound
+                coVerify(exactly = 0) { avatarStorage.deleteAvatar(any()) }
+            }
+            test("should return FilesystemUnavailable error on FilesystemError"){
+                coEvery { userRepo.findUser(any()) } returns dtoWithAvatar
+                coEvery { avatarStorage.deleteAvatar(any()) } returns IOException().left()
+                userService.deleteUserAvatar(dtoWithAvatar.phone) shouldBeLeft DeleteUserAvatarError.FileSystemUnavailable
+            }
+            test("should return Database error on ExposedSqlException"){
+                val databaseError = ExposedSQLException(null,emptyList(),mockk())
+                coEvery { userRepo.findUser(any()) } returns dtoWithAvatar
+                coEvery { userRepo.updateUser(any()) } throws databaseError
+                coEvery { avatarStorage.deleteAvatar(any()) } returns Unit.right()
+                userService.deleteUserAvatar(dtoWithAvatar.phone) shouldBeLeft DeleteUserAvatarError.Database(databaseError)
+            }
+            test("should return Unexpected on unexpected exception"){
+                val exception = Throwable()
+                coEvery { userRepo.findUser(any()) } throws exception
+                userService.deleteUserAvatar(userDTO.phone) shouldBeLeft DeleteUserAvatarError.Unexpected(exception)
+            }
+        }
+    }
 }

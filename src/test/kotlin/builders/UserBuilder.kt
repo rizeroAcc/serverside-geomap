@@ -1,5 +1,5 @@
 package com.mapprjct.builders
-import com.mapprjct.model.dto.User
+import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
 
@@ -13,5 +13,5 @@ class UserBuilder {
     var phone: String = "+79036559989"
     var username: String = "testName"
     var avatarFilename: String? = null
-    fun build() = User(RussiaPhoneNumber(phone), Username(username), avatarFilename)
+    fun build() = UserDTO(RussiaPhoneNumber(phone), Username(username), avatarFilename)
 }

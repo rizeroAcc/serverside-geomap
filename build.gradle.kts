@@ -70,4 +70,6 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:3.3.2")
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.3")
+
+    testImplementation("io.kotest.extensions:kotest-assertions-arrow:2.0.0")
 }
