@@ -1,6 +1,5 @@
 package com.mapprjct.model
 
-import com.mapprjct.exceptions.BaseAppException
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import java.util.UUID
@@ -15,25 +14,6 @@ data class ErrorResponse(
     val errorID : String,
 ){
     companion object{
-        @OptIn(ExperimentalTime::class)
-        fun fromAppException(exception : BaseAppException) : ErrorResponse {
-            return ErrorResponse(
-                message = exception.shortMessage,
-                details = exception.detailedMessage,
-                timestamp = Clock.System.now().toEpochMilliseconds(),
-                errorID = UUID.randomUUID().toString()
-            )
-        }
-        @OptIn(ExperimentalTime::class)
-        fun loggedDatabaseException(exception: ExposedSQLException) : ErrorResponse{
-            return ErrorResponse(
-                message = "Server database error",
-                details = "See logs for more details",
-                timestamp = Clock.System.now().toEpochMilliseconds(),
-                errorID = UUID.randomUUID().toString()
-            )
-        }
-
         @OptIn(ExperimentalTime::class)
         fun fromText(message : String) : ErrorResponse{
             return ErrorResponse(

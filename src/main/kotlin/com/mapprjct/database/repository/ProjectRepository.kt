@@ -1,13 +1,12 @@
 package com.mapprjct.database.repository
 
-import com.mapprjct.model.dto.ProjectDTO
-import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
-import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.ProjectDTO
+import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.model.dto.ProjectRegistrationResultDTO
 import com.mapprjct.model.dto.UnregisteredProjectDTO
-import java.util.UUID
+import java.util.*
 
 interface ProjectRepository {
 

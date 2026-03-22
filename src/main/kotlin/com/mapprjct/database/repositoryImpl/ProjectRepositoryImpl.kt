@@ -3,11 +3,10 @@ package com.mapprjct.database.repositoryImpl
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
-import com.mapprjct.model.dto.ProjectDTO
-import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
-import com.mapprjct.model.datatype.StringUUID
+import com.mapprjct.model.dto.ProjectDTO
+import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.model.dto.ProjectRegistrationResultDTO
 import com.mapprjct.model.dto.UnregisteredProjectDTO
 import com.mapprjct.utils.asRole
@@ -16,14 +15,8 @@ import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.update
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.batchInsert
-import org.jetbrains.exposed.v1.jdbc.insertReturning
-import org.jetbrains.exposed.v1.jdbc.select
-import java.util.UUID
+import org.jetbrains.exposed.v1.jdbc.*
+import java.util.*
 
 class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
 

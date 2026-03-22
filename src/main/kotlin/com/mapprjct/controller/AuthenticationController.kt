@@ -55,7 +55,7 @@ fun Application.configureAuthenticationController() {
                     expireAt = Clock.System.now().toEpochMilliseconds() + 1000 * 60 * 60 * 168 //7 days
                 )
                 //Костыль, но иначе ktor переиспользует SessionID
-                val newSessionID = (sessionStorage as com.mapprjct.database.storage.impl.PostgresSessionStorage).writeSession(newSession)
+                val newSessionID = (sessionStorage as PostgresSessionStorage).writeSession(newSession)
                 call.response.headers.append("Authorization", newSessionID)
                 call.respond(
                     status = HttpStatusCode.OK,

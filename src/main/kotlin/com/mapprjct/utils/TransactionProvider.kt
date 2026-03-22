@@ -2,7 +2,6 @@ package com.mapprjct.com.mapprjct.utils
 
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 interface TransactionProvider {
     suspend fun<T> runInTransaction(block: suspend () -> T) : T

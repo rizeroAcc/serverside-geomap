@@ -2,15 +2,14 @@ package com.mapprjct.database.repositoryImpl
 
 import com.mapprjct.database.repository.UserRepository
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.model.dto.UserCredentialsDTO
-import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
+import com.mapprjct.model.dto.UserCredentialsDTO
+import com.mapprjct.model.dto.UserDTO
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.updateReturning

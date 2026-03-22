@@ -1,8 +1,7 @@
 package com.mapprjct.database.tables
 
 import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.core.charLength
-import java.util.UUID
+import java.util.*
 
 object PlacemarkTable : Table("placemark") {
     val id = uuid("placemark_id").uniqueIndex().clientDefault { UUID.randomUUID() }

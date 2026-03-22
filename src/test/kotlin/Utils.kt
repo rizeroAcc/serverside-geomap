@@ -3,28 +3,22 @@ package com.mapprjct
 import com.mapprjct.database.tables.ProjectTable
 import com.mapprjct.database.tables.ProjectUsersTable
 import com.mapprjct.database.tables.UserTable
-import com.mapprjct.model.datatype.Password
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.model.datatype.Username
-import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.model.dto.UserDTO
 import com.mapprjct.utils.toStringUUID
-import io.ktor.client.request.forms.ChannelProvider
-import io.ktor.client.request.forms.MultiPartFormDataContent
-import io.ktor.client.request.forms.formData
-import io.ktor.http.Headers
-import io.ktor.http.HttpHeaders
-import io.ktor.server.testing.ApplicationTestBuilder
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.client.request.forms.*
+import io.ktor.http.*
+import io.ktor.server.testing.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.*
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.koin.ktor.ext.getKoin
-import java.util.UUID
+import java.util.*
 
 fun getTestResourceAsChannel(path : String) : ByteReadChannel {
     return ClassLoader.getSystemResourceAsStream(path)!!.toByteReadChannel()

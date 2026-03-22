@@ -76,7 +76,6 @@ class ProfileControllerTest : FunSpec() {
 
         context("update profile avatar"){
             testKtorApp(postgres){
-                val appConfig = getBean<AppConfig>()
                 val userService = getBean<UserService>()
                 val (user, token) = createRegisterAndLoginUser()
                 test("should update avatar"){

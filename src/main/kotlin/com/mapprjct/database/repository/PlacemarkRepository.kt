@@ -3,7 +3,6 @@ package com.mapprjct.database.repository
 import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.model.dto.PlacemarkDTO
 import com.mapprjct.model.dto.PlacemarkPhotoDTO
-import java.util.UUID
 
 interface PlacemarkRepository {
     suspend fun findByID(placemarkID : StringUUID) : PlacemarkDTO?
