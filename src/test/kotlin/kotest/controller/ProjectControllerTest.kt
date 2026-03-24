@@ -24,6 +24,7 @@ import com.mapprjct.model.toInvitation
 import com.mapprjct.service.InvitationService
 import com.mapprjct.service.ProjectService
 import com.mapprjct.testKtorApp
+import io.kotest.assertions.arrow.core.shouldBeRight
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
@@ -88,7 +89,7 @@ class ProjectControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Created
                     val project = response.body<RegisterProjectResponse>().registrationResult.projectDTO
-                    projectService.getProject(project.projectID).leftOrNull() shouldBe project
+                    projectService.getProject(project.projectID) shouldBeRight project
                 }
                 test("should respond BadRequest if project name empty"){
                     val registerProjectRequest = RegisterProjectRequest(
@@ -174,7 +175,7 @@ class ProjectControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Created
                     val invitationDTO = response.body<CreateInvitationResponse>().invitationDTO
-                    invitationService.getInvitation(invitationDTO.inviteCode).leftOrNull() shouldBe invitationDTO.toInvitation()
+                    invitationService.getInvitation(invitationDTO.inviteCode) shouldBeRight invitationDTO.toInvitation()
                 }
                 test("should respond BadRequest if project id isn't UUID"){
                     val createInvitationRequest = CreateInvitationRequest(

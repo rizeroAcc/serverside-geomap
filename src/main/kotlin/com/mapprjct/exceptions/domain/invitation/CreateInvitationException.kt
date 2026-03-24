@@ -3,11 +3,11 @@ package com.mapprjct.exceptions.domain.invitation
 import com.mapprjct.model.datatype.Role
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 
-sealed class CreateInvitationException(cause : Throwable? = null) : Throwable(cause) {
-    class InvalidInvitationRole(val role : Role) : CreateInvitationException()
-    class InviterNotStayInProject(val projectID : String) : CreateInvitationException()
-    class NoPermissionToAddMembers(val projectID : String) : CreateInvitationException()
-    class ProjectNotFound(val projectID : String) : CreateInvitationException()
-    class Database(val exception : ExposedSQLException) : CreateInvitationException()
-    class Unexpected(override val cause: Throwable) : CreateInvitationException(cause)
+sealed interface CreateInvitationException{
+    data class InvalidInvitationRole(val role : Role) : CreateInvitationException
+    data class InviterNotStayInProject(val projectID : String) : CreateInvitationException
+    data class NoPermissionToAddMembers(val projectID : String) : CreateInvitationException
+    data class ProjectNotFound(val projectID : String) : CreateInvitationException
+    data class Database(val exception : ExposedSQLException) : CreateInvitationException
+    data class Unexpected(val cause: Throwable) : CreateInvitationException
 }

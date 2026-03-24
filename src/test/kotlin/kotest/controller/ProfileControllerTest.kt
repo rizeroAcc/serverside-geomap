@@ -16,6 +16,8 @@ import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.Username
 import com.mapprjct.model.response.profile.UpdateUserInfoResponse
 import com.mapprjct.service.UserService
+import io.kotest.assertions.arrow.core.shouldBeLeft
+import io.kotest.assertions.arrow.core.shouldBeRight
 import io.kotest.assertions.ktor.client.shouldHaveContentType
 import io.kotest.assertions.ktor.client.shouldHaveStatus
 import io.kotest.core.extensions.install
@@ -205,7 +207,7 @@ class ProfileControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.OK
 
-                    userService.getUserAvatar(user.phone).getOrNull() shouldBe FindUserAvatarError.UserAvatarNotFound
+                    userService.getUserAvatar(user.phone) shouldBeLeft FindUserAvatarError.UserAvatarNotFound
 
                 }
                 test("should respond NotFound if user haven't avatar"){
@@ -305,7 +307,7 @@ class ProfileControllerTest : FunSpec() {
                     }
                     response shouldHaveStatus HttpStatusCode.Accepted
                     val newUserInfo = response.body<UpdateUserInfoResponse>().userDTO
-                    userService.getUser(user.phone).leftOrNull() shouldBe newUserInfo
+                    userService.getUser(user.phone) shouldBeRight newUserInfo
                 }
                 test("should respond BadRequest if try to change phone"){
                     val changeUserInfoRequest = ChangeUserInfoRequest(

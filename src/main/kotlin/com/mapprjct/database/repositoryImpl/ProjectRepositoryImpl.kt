@@ -12,6 +12,7 @@ import com.mapprjct.model.dto.UnregisteredProjectDTO
 import com.mapprjct.utils.asRole
 import com.mapprjct.utils.toStringUUID
 import com.mapprjct.utils.toUUID
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -24,7 +25,8 @@ class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
         userPhone: RussiaPhoneNumber,
         projectID: UUID
     ): ProjectMembershipDTO? {
-        return ProjectUsersTable.select(
+        return (ProjectUsersTable innerJoin ProjectTable)
+            .select(
             ProjectTable.id,
             ProjectTable.name,
             ProjectTable.membersCount,

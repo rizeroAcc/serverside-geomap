@@ -14,6 +14,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.extensions.install
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.ktor.client.call.body
 import io.ktor.client.request.post
@@ -45,12 +46,16 @@ class AuthenticationControllerTest : FunSpec() {
                         setBody(registrationRequest)
                     }
                     response shouldHaveStatus HttpStatusCode.Created
-                    response.body<RegistrationResponse>() shouldBe RegistrationResponse(user)
-                    userService.getUser(user.phone).getOrNull() shouldBe
-                        user.copy(
-                            phone = RussiaPhoneNumber(user.phone.normalizeAsRussiaPhone())
-                        )
-
+                    response.body<RegistrationResponse>().userDTO.let {
+                        it.phone.value shouldBe user.phone.normalizeAsRussiaPhone()
+                        it.username shouldBe user.username
+                        it.avatarFilename shouldBe user.avatarFilename
+                    }
+                    userService.getUser(user.phone).getOrNull() shouldNotBeNull {
+                        this.phone.value shouldBe user.phone.normalizeAsRussiaPhone()
+                        this.username shouldBe user.username
+                        this.avatarFilename shouldBe user.avatarFilename
+                    }
                 }
                 test("should respond 409 if user already registered"){
                     val user = createTestUser { phone = "89038518685" }

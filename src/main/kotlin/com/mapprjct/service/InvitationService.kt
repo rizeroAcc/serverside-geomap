@@ -5,6 +5,7 @@ import arrow.core.raise.catch
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
+import com.mapprjct.com.mapprjct.utils.TransactionProvider
 import com.mapprjct.database.repository.InvitationRepository
 import com.mapprjct.database.repository.ProjectRepository
 import com.mapprjct.exceptions.domain.invitation.CreateInvitationException
@@ -23,10 +24,11 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 
 class InvitationService(
-    val database: Database,
+    val transactionProvider: TransactionProvider,
     val projectRepository: ProjectRepository,
     val invitationRepository: InvitationRepository
 ) {
+    //todo Нет ошибки на случай, когда пользователь пытается создать приглашение с ролью выше своей (может и не надо)
     @OptIn(ExperimentalTime::class)
     suspend fun createInvitation(
         inviterPhone : RussiaPhoneNumber,
@@ -38,8 +40,7 @@ class InvitationService(
                 CreateInvitationException.InvalidInvitationRole(role)
             }
 
-            suspendTransaction(database) {
-
+            transactionProvider.runInTransaction {
                 ensureNotNull(projectRepository.getProjectById(projectID.toUUID())){
                     CreateInvitationException.ProjectNotFound(projectID.value)
                 }
@@ -71,7 +72,7 @@ class InvitationService(
     //todo cover in tests
     suspend fun getInvitation(inviteCode : StringUUID) : Either<FindInvitationException, Invitation> = either {
         catch({
-            suspendTransaction(database) {
+            transactionProvider.runInTransaction {
                 invitationRepository.getInvitation(inviteCode.toUUID()) ?: raise(FindInvitationException.NotFound(inviteCode.value))
             }
         }){ error->
@@ -82,7 +83,7 @@ class InvitationService(
         }
     }
 
-    suspend fun deleteInvitation(inviteCode : String) : Result<Unit> {
+    suspend fun deleteInvitation(inviteCode : String) : Either<Unit, Any> = either {
         TODO()
     }
 }
