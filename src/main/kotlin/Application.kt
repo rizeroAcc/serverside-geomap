@@ -11,12 +11,10 @@ import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 
 sealed class ApplicationStartMode(){
-    data object DEBUG : ApplicationStartMode()
-    data object RELEASE : ApplicationStartMode()
+    data object DEFAULT : ApplicationStartMode()
     data class TEST(
-        val dbURL : String,
-        val dbUsername : String,
-        val dbPassword : String
+        val dbConfig: DatabaseConfig,
+        val minioConfig: MinioConfig,
     ) : ApplicationStartMode()
 }
 
@@ -24,7 +22,7 @@ fun main(args: Array<String>) {
     EngineMain.main(args)
 }
 
-fun Application.module(startMode: ApplicationStartMode = ApplicationStartMode.DEBUG) {
+fun Application.module(startMode: ApplicationStartMode = ApplicationStartMode.DEFAULT) {
     configureKoin(startMode)
     configureSecurity()
     configurePlugins()

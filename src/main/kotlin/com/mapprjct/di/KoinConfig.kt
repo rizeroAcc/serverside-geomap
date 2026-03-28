@@ -2,6 +2,8 @@ package com.mapprjct.di
 
 import com.mapprjct.AppConfig
 import com.mapprjct.ApplicationStartMode
+import com.mapprjct.DatabaseConfig
+import com.mapprjct.MinioConfig
 import com.mapprjct.com.mapprjct.utils.SuspendTransactionProvider
 import com.mapprjct.com.mapprjct.utils.TransactionProvider
 import io.ktor.server.application.*
@@ -20,22 +22,31 @@ fun Application.configureKoin(startMode: ApplicationStartMode) {
         slf4jLogger()
         modules(
             module {
-                single<AppConfig> {
+                single<AppConfig>(createdAtStart = true) {
                     when(startMode) {
                         is ApplicationStartMode.TEST -> {
                             AppConfig(
-                                databaseURL = startMode.dbURL,
-                                databaseUsername = startMode.dbUsername,
-                                databasePassword = startMode.dbPassword,
-                                avatarResourcePath = environment.config.property("resource.avatar.path").getString()
+                                database = startMode.dbConfig,
+                                minio = startMode.minioConfig,
+                                avatarResourcePath = environment.config.property("resource.avatar.path").getString(),
+                                placemarkIconsPath = environment.config.property("resource.placemark-icons.path").getString(),
                             )
                         }
                         else -> {
                             AppConfig(
-                                databaseURL = environment.config.property("postgres.url").getString(),
-                                databaseUsername = environment.config.property("postgres.user").getString(),
-                                databasePassword = environment.config.property("postgres.password").getString(),
-                                avatarResourcePath = environment.config.property("resource.avatar.path").getString()
+                                database = DatabaseConfig(
+                                    url = environment.config.property("postgres.url").getString(),
+                                    username = environment.config.property("postgres.user").getString(),
+                                    password = environment.config.property("postgres.password").getString()
+                                ),
+                                minio = MinioConfig(
+                                    endpoint = environment.config.property("minio.endpoint").getString(),
+                                    accessKey = environment.config.property("minio.accessKey").getString(),
+                                    secretKey = environment.config.property("minio.secretKey").getString(),
+                                    placemarkIconBucketName = environment.config.property("minio.placemark-icon-bucket.name").getString(),
+                                ),
+                                avatarResourcePath = environment.config.property("resource.avatar.path").getString(),
+                                placemarkIconsPath = environment.config.property("resource.placemark-icons.path").getString()
                             )
                         }
                     }
@@ -47,6 +58,6 @@ fun Application.configureKoin(startMode: ApplicationStartMode) {
             repositoryModule,
             storageModule,
             serviceModule,
-        )
+        ).createEagerInstances()
     }
 }

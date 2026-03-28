@@ -1,8 +1,22 @@
 package com.mapprjct
 
-//class AppConfig(
-//    val databaseURL : String,
-//    val databaseUsername : String,
-//    val databasePassword : String,
-//    val avatarResourcePath : String,
-//)
+import com.mapprjct.database.storage.PlacemarkIconStorage
+
+class DatabaseConfig(
+    val url : String,
+    val username : String,
+    val password : String,
+)
+class MinioConfig(
+    val endpoint : String,
+    val accessKey : String,
+    val secretKey : String,
+    val placemarkIconBucketName : String,
+)
+
+class AppConfig(
+    val database : DatabaseConfig,
+    val minio : MinioConfig,
+    val avatarResourcePath : String,
+    val placemarkIconsPath : String,
+)

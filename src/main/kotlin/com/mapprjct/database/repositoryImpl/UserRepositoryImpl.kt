@@ -14,7 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.updateReturning
 
-class UserRepositoryImpl(val database: Database) : UserRepository {
+class UserRepositoryImpl() : UserRepository {
 
     override suspend fun insert(userDTO: UserDTO, password : Password) : UserDTO{
         return UserTable.insertReturning(

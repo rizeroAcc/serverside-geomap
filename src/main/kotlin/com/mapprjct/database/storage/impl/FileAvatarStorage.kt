@@ -10,6 +10,7 @@ import com.mapprjct.AppConfig
 import com.mapprjct.database.storage.AvatarStorage
 import com.mapprjct.exceptions.storage.UpdateAvatarFileError
 import com.mapprjct.model.dto.UserDTO
+import com.mapprjct.utils.getOrCreateDirectory
 import io.ktor.util.cio.writeChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.copyAndClose
@@ -23,8 +24,7 @@ import java.util.UUID
 class FileAvatarStorage(
     appConfig: AppConfig
 ) : AvatarStorage{
-
-    val uploadDir = getOrCreateUploadDirectory(appConfig.avatarResourcePath)
+    val uploadDir : File = getOrCreateDirectory(appConfig.avatarResourcePath)
 
     override suspend fun saveOrReplaceUserAvatar(
         userDTO: UserDTO,
@@ -35,7 +35,6 @@ class FileAvatarStorage(
         val newFileName = "${userDTO.phone}$fileExtension"
         val finalFile = File(uploadDir, newFileName)
 
-        // resourceScope гарантирует выполнение release-блока (удаление tempFile)
         resourceScope {
             install({ tempFile }) { file, _ -> file.delete() }
 
@@ -78,9 +77,7 @@ class FileAvatarStorage(
         if (!avatarFile.delete()) raise(IOException())
     }
 
-    override suspend fun getUploadDirectory(): File {
-        return uploadDir
-    }
+    override suspend fun getUploadDirectory(): File = uploadDir
 
     /**
      * @throws java.io.IOException - if failed to remove old file
@@ -95,19 +92,4 @@ class FileAvatarStorage(
             }
         }
     }
-
-    /**
-     * @throws IllegalStateException - if failed to create directory
-     * */
-    private fun getOrCreateUploadDirectory(relatePath : String) : File {
-        val directory = File(relatePath)
-        if (!directory.exists()) {
-            if(!directory.mkdirs()){
-                throw IllegalStateException("Could not create directory ${directory.absolutePath}")
-            }
-        }
-        return directory
-    }
-
-
 }

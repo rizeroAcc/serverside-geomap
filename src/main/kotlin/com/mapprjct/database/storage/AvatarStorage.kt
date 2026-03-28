@@ -10,7 +10,11 @@ import java.io.IOException
 
 interface AvatarStorage {
 
-    suspend fun saveOrReplaceUserAvatar(userDTO : UserDTO, fileExtension : String, avatarByteProvider: suspend () -> ByteReadChannel) : Either<UpdateAvatarFileError, String>
+    suspend fun saveOrReplaceUserAvatar(
+        userDTO : UserDTO,
+        fileExtension : String,
+        avatarByteProvider: suspend () -> ByteReadChannel
+    ) : Either<UpdateAvatarFileError, String>
     /**
      * @throws java.io.FileNotFoundException - if avatar not found
      * */

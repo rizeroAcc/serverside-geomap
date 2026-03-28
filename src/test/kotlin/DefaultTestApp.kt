@@ -27,9 +27,17 @@ fun testKtorApp(
     application {
         module(
             startMode = ApplicationStartMode.TEST(
-                dbURL = container.jdbcUrl,
-                dbUsername = container.username,
-                dbPassword = container.password
+                dbConfig = DatabaseConfig(
+                    url = container.jdbcUrl,
+                    username = container.username,
+                    password = container.password,
+                ),
+                minioConfig = MinioConfig(
+                    endpoint = "",
+                    accessKey = "",
+                    secretKey = "",
+                    placemarkIconBucketName = ""
+                ),
             )
         )
     }

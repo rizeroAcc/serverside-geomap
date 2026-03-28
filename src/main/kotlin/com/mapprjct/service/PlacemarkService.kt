@@ -1,19 +1,26 @@
 package com.mapprjct.service
 
 import arrow.core.Either
+import arrow.core.getOrElse
 import arrow.core.raise.catch
+import arrow.core.raise.context.bind
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
+import arrow.core.right
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.DeletePlacemarkError
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.GetAllProjectPlacemarksError
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.GetPlacemarkError
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.UpdatePlacemarkError
+import com.mapprjct.com.mapprjct.exceptions.storage.DeletePlacemarkIconError
+import com.mapprjct.com.mapprjct.exceptions.storage.WritePlacemarkIconError
 import com.mapprjct.com.mapprjct.utils.TransactionProvider
 import com.mapprjct.database.repository.PlacemarkRepository
 import com.mapprjct.database.repository.ProjectRepository
+import com.mapprjct.database.storage.PlacemarkIconStorage
 import com.mapprjct.exceptions.domain.placemark.CreatePlacemarkError
 import com.mapprjct.exceptions.domain.placemark.UpdatePlacemarkIconError
+import com.mapprjct.exceptions.storage.SaveOrUpdatePlacemarkIconError
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
@@ -26,6 +33,7 @@ class PlacemarkService(
     val transactionProvider: TransactionProvider,
     val placemarkRepository: PlacemarkRepository,
     val projectRepository: ProjectRepository,
+    val placemarkIconStorage: PlacemarkIconStorage,
 ) {
     suspend fun createPlacemark(placemarkDTO: PlacemarkDTO, userPhone : RussiaPhoneNumber) : Either<CreatePlacemarkError, PlacemarkDTO> = either {
         ensure(placemarkDTO.name.isNotBlank()) {
@@ -142,6 +150,7 @@ class PlacemarkService(
         ensure(extension in allowedExtensions) {
             UpdatePlacemarkIconError.InvalidIconFormat(allowedExtensions)
         }
+
         TODO()
     }
 

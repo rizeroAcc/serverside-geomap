@@ -1,3 +1,5 @@
 resource:
   avatar:
     path: "test/api/uploads/avatars/"
+  placemark-icons:
+    path: "test/api/uploads/placemark/icons"

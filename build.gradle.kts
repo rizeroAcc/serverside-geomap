@@ -72,4 +72,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.3")
 
     testImplementation("io.kotest.extensions:kotest-assertions-arrow:2.0.0")
+
+    implementation("io.minio:minio:9.0.0")
+    implementation("aws.sdk.kotlin:s3:1.6.44")
 }

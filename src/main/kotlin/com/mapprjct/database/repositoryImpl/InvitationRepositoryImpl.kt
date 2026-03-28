@@ -13,7 +13,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import java.util.UUID
 
-class InvitationRepositoryImpl(val database: Database) : InvitationRepository{
+class InvitationRepositoryImpl() : InvitationRepository{
     override suspend fun insertInvitation(
         invitation : Invitation
     ): Invitation {

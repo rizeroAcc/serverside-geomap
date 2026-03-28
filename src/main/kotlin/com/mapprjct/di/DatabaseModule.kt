@@ -8,10 +8,10 @@ val databaseModule = module {
     single<Database> {
         val appConfig = getKoin().get<AppConfig>()
         Database.connect(
-            url = appConfig.databaseURL,
+            url = appConfig.database.url,
             driver = "org.postgresql.Driver",
-            user = appConfig.databaseUsername,
-            password = appConfig.databasePassword,
+            user = appConfig.database.username,
+            password = appConfig.database.password,
         )
     }
 }

@@ -8,6 +8,12 @@ postgres:
   url: "jdbc:postgresql://localhost:5432/geomap"
   user: postgres
   password: kilopkil12
+minio:
+  endpoint: "http://192.168.10.237:9000"
+  accessKey: "minioadmin"
+  secretKey: "minioadmin"
+  placemark-icon-bucket:
+    name: "placemark-icons"
 jwt:
   secret: "f38a4a6da1a0fce3a50e0ef2335ac8ad51c39"
   issuer: "map.server"
@@ -16,3 +22,5 @@ jwt:
 resource:
   avatar:
     path: "api/uploads/avatars/"
+  placemark-icons:
+    path: "api/uploads/placemark/icons"

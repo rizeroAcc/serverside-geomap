@@ -39,6 +39,7 @@ import io.ktor.server.request.ContentTransformationException
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete

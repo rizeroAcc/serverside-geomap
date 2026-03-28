@@ -19,7 +19,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import java.util.*
 
-class ProjectRepositoryImpl(val database: Database) : ProjectRepository {
+class ProjectRepositoryImpl() : ProjectRepository {
 
     override suspend fun findUserMembershipInProject(
         userPhone: RussiaPhoneNumber,
