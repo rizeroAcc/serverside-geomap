@@ -37,7 +37,7 @@ class InvitationRepositoryTest : FunSpec({
             password = postgres.password
         )
     }
-    val invitationRepository by lazy { InvitationRepositoryImpl(database) }
+    val invitationRepository by lazy { InvitationRepositoryImpl() }
 
     beforeSpec {
         suspendTransaction(database) {

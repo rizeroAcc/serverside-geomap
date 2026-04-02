@@ -74,5 +74,7 @@ dependencies {
     testImplementation("io.kotest.extensions:kotest-assertions-arrow:2.0.0")
 
     implementation("io.minio:minio:9.0.0")
+    testImplementation("org.testcontainers:testcontainers-minio:2.0.4")
+
     implementation("aws.sdk.kotlin:s3:1.6.44")
 }

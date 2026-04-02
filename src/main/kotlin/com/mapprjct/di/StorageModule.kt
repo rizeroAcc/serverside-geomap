@@ -31,5 +31,11 @@ val storageModule = module {
     }
     single<SessionStorage> { PostgresSessionStorage(get()) }
     single<AvatarStorage> { FileAvatarStorage(get()) }
-    single<PlacemarkIconStorage> { S3PlacemarkIconStorage(get(),get()) }
+    single<PlacemarkIconStorage> {
+        val config = get<AppConfig>()
+        S3PlacemarkIconStorage(
+            s3Client = get(),
+            bucketName = config.minio.placemarkIconBucketName
+        )
+    }
 }

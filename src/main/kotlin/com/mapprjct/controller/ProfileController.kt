@@ -114,12 +114,11 @@ private fun Route.updateProfileAvatar(userService: UserService){
                 }
                 part.dispose()
             }
-            println("\n\n\n ---- exit for each part ---- \n\n\n")
             return@post
         }.onFailure { exception->
             when (exception) {
                 is ContentTransformationException -> respondBadRequest("Request have invalid multipart format")
-                is IllegalArgumentException -> respondBadRequest(exception.message!!)
+                is IllegalArgumentException -> respondBadRequest(exception.message.toString())
                 is CancellationException -> throw exception
                 else -> respondUnexpected()
             }

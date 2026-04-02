@@ -40,7 +40,7 @@ class UserRepositoryTest : FunSpec({
         )
     }
 
-    val userRepository : UserRepository by lazy { UserRepositoryImpl(database) }
+    val userRepository : UserRepository by lazy { UserRepositoryImpl() }
 
     beforeEach {
         transaction(database) {

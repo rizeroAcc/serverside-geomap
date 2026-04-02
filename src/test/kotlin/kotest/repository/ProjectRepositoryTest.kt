@@ -56,7 +56,7 @@ class ProjectRepositoryTest : FunSpec({
 
 
 
-    val projectRepository: ProjectRepository by lazy { ProjectRepositoryImpl(database) }
+    val projectRepository: ProjectRepository by lazy { ProjectRepositoryImpl() }
 
     beforeSpec {
         transaction(database) { SchemaUtils.create(UserTable) }
