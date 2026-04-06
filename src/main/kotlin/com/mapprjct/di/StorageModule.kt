@@ -34,7 +34,7 @@ val storageModule = module {
     single<PlacemarkIconStorage> {
         val config = get<AppConfig>()
         S3PlacemarkIconStorage(
-            s3Client = get(),
+            client = get(),
             bucketName = config.minio.placemarkIconBucketName
         )
     }

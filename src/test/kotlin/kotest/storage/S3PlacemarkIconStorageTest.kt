@@ -1,9 +1,13 @@
 package com.mapprjct.kotest.storage
 
+import arrow.core.right
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.s3.S3Client
 import aws.sdk.kotlin.services.s3.deleteObject
+import aws.sdk.kotlin.services.s3.getBucketVersioning
+import aws.sdk.kotlin.services.s3.headBucket
 import aws.sdk.kotlin.services.s3.listObjectsV2
+import aws.sdk.kotlin.services.s3.model.BucketVersioningStatus
 import aws.sdk.kotlin.services.s3.model.GetObjectRequest
 import aws.smithy.kotlin.runtime.content.toByteArray
 import aws.smithy.kotlin.runtime.net.url.Url
@@ -14,6 +18,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.extensions.testcontainers.TestContainerSpecExtension
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.ktor.utils.io.*
 import kotlinx.coroutines.runBlocking
 import org.testcontainers.containers.MinIOContainer
@@ -34,9 +39,9 @@ class S3PlacemarkIconStorageTest : FunSpec() {
                 secretAccessKey = minIOContainer.password
             }
         }
-        val bucketName = "test-placemark-icon"
+        val bucketName = "test"
         val storage = S3PlacemarkIconStorage(
-            s3Client = s3Client,
+            client = s3Client,
             bucketName = bucketName,
         )
         beforeEach {
@@ -47,6 +52,18 @@ class S3PlacemarkIconStorageTest : FunSpec() {
                     key = item.key
                     bucket = bucketName
                 }
+            }
+        }
+
+        context("bucket configuration"){
+            test("bucket should exists"){
+                s3Client.headBucket{
+                    bucket = bucketName
+                } shouldNotBeNull{}
+            }
+            test("versioning should be enabled") {
+                val versioning = s3Client.getBucketVersioning { bucket = bucketName }
+                versioning.status shouldBe BucketVersioningStatus.Enabled
             }
         }
 
@@ -68,21 +85,34 @@ class S3PlacemarkIconStorageTest : FunSpec() {
                 }
             }
             test("should replace icon"){
+                //todo проверить что нормально все по версиям
                 val iconBytes = getTestResourceAsChannel("avatar/AppLogo.png")
-                storage.saveIcon("test.png"){
+                val firstKey = storage.saveIcon("test.png"){
                     iconBytes
-                }
-                storage.saveIcon("test.png"){
-                    getTestResourceAsChannel("avatar/AppLogo.png")
-                }
+                }.getOrNull()!!
+                val secondKey = storage.saveIcon("test.png"){
+                    getTestResourceAsChannel("avatar/red-locator.png")
+                }.getOrNull()!!
                 s3Client.getObject(
                     GetObjectRequest {
-                        key = "test.png"
+                        key = firstKey.substringBefore("?v=")
+                        versionId = firstKey.substringAfter("?v=")
                         bucket = bucketName
                     }
                 ){ response ->
                     response.body shouldNotBeNull {
                         toByteArray() shouldBe getTestResourceAsChannel("avatar/AppLogo.png").toByteArray()
+                    }
+                }
+                s3Client.getObject(
+                    GetObjectRequest {
+                        key = secondKey.substringBefore("?v=")
+                        versionId = secondKey.substringAfter("?v=")
+                        bucket = bucketName
+                    }
+                ){ response ->
+                    response.body shouldNotBeNull {
+                        toByteArray() shouldBe getTestResourceAsChannel("avatar/red-locator.png").toByteArray()
                     }
                 }
             }
