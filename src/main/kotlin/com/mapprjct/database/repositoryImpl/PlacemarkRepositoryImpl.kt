@@ -13,6 +13,8 @@ import com.mapprjct.utils.toUUID
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteReturning
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.updateReturning
@@ -64,6 +66,10 @@ class PlacemarkRepositoryImpl : PlacemarkRepository {
             it[PlacemarkTable.versionID] = UUID.randomUUID()
         }
             .singleOrNull()?.toPlacemark()
+    }
+
+    override suspend fun delete(placemark: PlacemarkDTO) : Int {
+        return PlacemarkTable.deleteWhere { PlacemarkTable.id eq placemark.placemarkID.toUUID() }
     }
 
     override suspend fun findAllPlacemarkPhotos(placemarkId: StringUUID): List<PlacemarkPhotoDTO> {

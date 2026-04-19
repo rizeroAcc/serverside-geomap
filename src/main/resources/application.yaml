@@ -9,7 +9,7 @@ postgres:
   user: postgres
   password: kilopkil12
 minio:
-  endpoint: "http://192.168.10.237:9000"
+  endpoint: "http://127.0.0.1:9000"
   accessKey: "minioadmin"
   secretKey: "minioadmin"
   placemark-icon-bucket:

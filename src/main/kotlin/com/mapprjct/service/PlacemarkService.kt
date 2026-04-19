@@ -5,20 +5,23 @@ import arrow.core.raise.catch
 import arrow.core.raise.either
 import arrow.core.raise.ensure
 import arrow.core.raise.ensureNotNull
-import com.mapprjct.com.mapprjct.exceptions.domain.placemark.DeletePlacemarkError
+import arrow.core.right
+import com.mapprjct.database.storage.S3VersioningObjectStorage
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.GetAllProjectPlacemarksError
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.GetPlacemarkError
 import com.mapprjct.com.mapprjct.exceptions.domain.placemark.UpdatePlacemarkError
 import com.mapprjct.com.mapprjct.utils.TransactionProvider
 import com.mapprjct.database.repository.PlacemarkRepository
 import com.mapprjct.database.repository.ProjectRepository
-import com.mapprjct.database.storage.PlacemarkIconStorage
 import com.mapprjct.exceptions.domain.placemark.CreatePlacemarkError
+import com.mapprjct.exceptions.domain.placemark.DeletePlacemarkError
 import com.mapprjct.exceptions.domain.placemark.UpdatePlacemarkIconError
+import com.mapprjct.exceptions.storage.s3.SaveS3ObjectError
 import com.mapprjct.model.datatype.Role
 import com.mapprjct.model.datatype.RussiaPhoneNumber
 import com.mapprjct.model.datatype.StringUUID
 import com.mapprjct.model.dto.PlacemarkDTO
+import com.mapprjct.model.dto.ProjectMembershipDTO
 import com.mapprjct.utils.toUUID
 import io.ktor.utils.io.*
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
@@ -27,7 +30,7 @@ class PlacemarkService(
     val transactionProvider: TransactionProvider,
     val placemarkRepository: PlacemarkRepository,
     val projectRepository: ProjectRepository,
-    val placemarkIconStorage: PlacemarkIconStorage,
+    val placemarkIconStorage: S3VersioningObjectStorage,
 ) {
     suspend fun createPlacemark(placemarkDTO: PlacemarkDTO, userPhone : RussiaPhoneNumber) : Either<CreatePlacemarkError, PlacemarkDTO> = either {
         ensure(placemarkDTO.name.isNotBlank()) {
@@ -126,17 +129,21 @@ class PlacemarkService(
         fileName : String,
         fileDataChannelProvider : suspend ()-> ByteReadChannel
     ) : Either<UpdatePlacemarkIconError, PlacemarkDTO> = either {
-
-        val oldPlacemark = placemarkRepository.findByID(clientPlacemark.placemarkID) ?: raise(UpdatePlacemarkIconError.NotFound(clientPlacemark.placemarkID.value))
-
-        val membership = ensureNotNull(projectRepository.findUserMembershipInProject(userPhone,oldPlacemark.projectID.toUUID())){
-            UpdatePlacemarkIconError.UserNotStayInProject(oldPlacemark.projectID.value)
+        val (placemark,membership) = transactionProvider.runInTransaction {
+            val placemark = placemarkRepository.findByID(clientPlacemark.placemarkID)
+                ?: raise(UpdatePlacemarkIconError.NotFound(clientPlacemark.placemarkID.value))
+            val membership = ensureNotNull(projectRepository.findUserMembershipInProject(userPhone,placemark.projectID.toUUID())){
+                UpdatePlacemarkIconError.UserNotStayInProject(placemark.projectID.value)
+            }
+            placemark to membership
         }
+
+
         ensure(membership.role != Role.Worker){
-            UpdatePlacemarkIconError.NoPermissionToUpdatePlacemark(oldPlacemark.projectID.value)
+            UpdatePlacemarkIconError.NoPermissionToUpdatePlacemark(placemark.projectID.value)
         }
-        ensure(oldPlacemark.versionID == clientPlacemark.versionID){
-            UpdatePlacemarkIconError.VersionConflict(oldPlacemark)
+        ensure(placemark.versionID == clientPlacemark.versionID){
+            UpdatePlacemarkIconError.VersionConflict(placemark)
         }
 
         val allowedExtensions = getAllowedAvatarFormats()
@@ -145,12 +152,32 @@ class PlacemarkService(
             UpdatePlacemarkIconError.InvalidIconFormat(allowedExtensions)
         }
 
-        TODO()
+        val iconKey = placemarkIconStorage.saveObject("${placemark.placemarkID}/icon.$extension"){
+            fileDataChannelProvider()
+        }.mapLeft { error->
+            when(error){
+                is SaveS3ObjectError.S3StorageUnavailable -> UpdatePlacemarkIconError.FileStorage(error.cause)
+                is SaveS3ObjectError.Unexpected -> UpdatePlacemarkIconError.Unexpected(error.cause)
+            }
+        }.bind()
+        transactionProvider.runInTransaction {
+            placemarkRepository.update(placemark.copy(icon = iconKey)) ?: raise(UpdatePlacemarkIconError.ConcurrentUpdate)
+        }
     }
 
 
-    suspend fun deletePlacemark() : Either<DeletePlacemarkError, Unit> = either {
-        TODO()
+    suspend fun deletePlacemark(userPhone : RussiaPhoneNumber, placemarkID : StringUUID) : Either<DeletePlacemarkError, Unit> = either {
+        transactionProvider.runInTransaction {
+            val placemark = placemarkRepository.findByID(placemarkID)
+                ?: return@runInTransaction //Not found or already deleted
+            val membership = ensureNotNull(projectRepository.findUserMembershipInProject(userPhone,placemark.projectID.toUUID())){
+                DeletePlacemarkError.UserNotStayInProject(placemark.projectID.value)
+            }
+            ensure(membership.role != Role.Worker){
+                DeletePlacemarkError.NoPermissionToDeletePlacemark(placemark.projectID.value)
+            }
+            placemarkRepository.delete(placemark)
+        }
     }
 
     fun getAllowedAvatarFormats() = listOf(".jpg", ".jpeg", ".png")

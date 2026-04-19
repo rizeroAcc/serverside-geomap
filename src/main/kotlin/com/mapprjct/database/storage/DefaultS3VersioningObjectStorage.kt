@@ -1,4 +1,4 @@
-package com.mapprjct.com.mapprjct.database.storage
+package com.mapprjct.database.storage
 
 import arrow.core.Either
 import arrow.core.raise.catch
@@ -6,33 +6,35 @@ import arrow.core.raise.either
 import arrow.core.raise.ensureNotNull
 import aws.sdk.kotlin.services.s3.S3Client
 import aws.sdk.kotlin.services.s3.createBucket
+import aws.sdk.kotlin.services.s3.deleteObject
+import aws.sdk.kotlin.services.s3.deleteObjects
 import aws.sdk.kotlin.services.s3.headBucket
 import aws.sdk.kotlin.services.s3.model.BucketVersioningStatus
+import aws.sdk.kotlin.services.s3.model.Delete
 import aws.sdk.kotlin.services.s3.model.GetObjectRequest
-import aws.sdk.kotlin.services.s3.model.GetObjectRequest.Companion.invoke
 import aws.sdk.kotlin.services.s3.model.NotFound
+import aws.sdk.kotlin.services.s3.model.ObjectIdentifier
 import aws.sdk.kotlin.services.s3.model.S3Exception
 import aws.sdk.kotlin.services.s3.putBucketVersioning
 import aws.sdk.kotlin.services.s3.putObject
-import aws.smithy.kotlin.runtime.content.ByteStream
 import aws.smithy.kotlin.runtime.content.asByteStream
-import com.mapprjct.com.mapprjct.database.storage.impl.S3PlacemarkIconStorage
-import com.mapprjct.com.mapprjct.exceptions.storage.GetPlacemarkIconError
-import com.mapprjct.com.mapprjct.exceptions.storage.GetS3ObjectError
-import com.mapprjct.com.mapprjct.exceptions.storage.SaveS3ObjectError
-import com.mapprjct.exceptions.storage.SavePlacemarkIconError
+import aws.smithy.kotlin.runtime.content.toByteArray
+import com.mapprjct.database.storage.S3VersioningObjectStorage
+import com.mapprjct.exceptions.storage.s3.DeleteS3ObjectError
+import com.mapprjct.exceptions.storage.s3.DeleteS3ObjectsError
+import com.mapprjct.exceptions.storage.s3.GetS3ObjectError
+import com.mapprjct.com.mapprjct.exceptions.storage.ObjectKeyParseError
+import com.mapprjct.exceptions.storage.s3.SaveS3ObjectError
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 
-abstract class AbstractS3VersioningObjectStorage(
+class DefaultS3VersioningObjectStorage(
     val s3Client: S3Client,
     val bucketName: String,
-) {
-
-    val logger = LoggerFactory.getLogger(S3PlacemarkIconStorage::class.java)!!
-
+) : S3VersioningObjectStorage {
+    val logger = LoggerFactory.getLogger(DefaultS3VersioningObjectStorage::class.java)!!
     private suspend fun initBucket() {
         catch({
             s3Client.headBucket{
@@ -55,7 +57,6 @@ abstract class AbstractS3VersioningObjectStorage(
             }
         }
     }
-
     private suspend fun enableBucketVersioning(){
         catch({
             s3Client.putBucketVersioning {
@@ -76,7 +77,7 @@ abstract class AbstractS3VersioningObjectStorage(
         }
     }
 
-    suspend fun saveObject(
+    override suspend fun saveObject(
         objectKey: String,
         objectBytesProvider: suspend () -> ByteReadChannel
     ): Either<SaveS3ObjectError, String> = either {
@@ -87,7 +88,7 @@ abstract class AbstractS3VersioningObjectStorage(
                 this.key = objectKey
                 this.body = objectContent
             }.versionId!!
-            "$objectKey?v=$versionID"//Key for this image version
+            "$objectKey?v=$versionID"//Key for this object version
         }){ error: Throwable->
             if (error is S3Exception){
                 raise(SaveS3ObjectError.S3StorageUnavailable(error))
@@ -97,33 +98,80 @@ abstract class AbstractS3VersioningObjectStorage(
         }
     }
 
-    suspend fun getObject(objectKey : String): Either<GetS3ObjectError, ByteStream> = either {
-        val (iconName,version) = parseKey(objectKey)
+    override suspend fun getObject(objectKey : String): Either<GetS3ObjectError, ByteArray> = either {
+        val (objectName,version) = parseKey(objectKey).mapLeft {
+            GetS3ObjectError.KeyParseError(it.message)
+        }.bind()
         catch({
             val request = GetObjectRequest{
                 bucket = bucketName
-                key = iconName
+                key = objectName
                 versionId = version
             }
             s3Client.getObject(request){ response ->
                 ensureNotNull(response.body){
-                    GetS3ObjectError.NoIconWithSuchKey
-                }
+                    GetS3ObjectError.NoObjectWithSuchKey
+                }.toByteArray()
             }
         }){ error : Throwable->
             when(error){
-                is NotFound -> raise(GetS3ObjectError.NoIconWithSuchKey)
-                is S3Exception -> raise(GetS3ObjectError.S3StorageError(error))
+                is S3Exception -> {
+                    when(error.sdkErrorMetadata.errorCode){
+                        "NoSuchVersion" -> raise(GetS3ObjectError.NoObjectWithSuchKey)
+                        else -> raise(GetS3ObjectError.S3StorageError(error))
+                    }
+                }
                 else -> raise(GetS3ObjectError.Unexpected(error))
             }
         }
     }
 
-    private fun parseKey(key : String) : Pair<String, String> {
+    override suspend fun deleteObject(objectKey: String) : Either<DeleteS3ObjectError,Unit> = either {
+        val (objectName, version) = parseKey(objectKey).mapLeft {
+            DeleteS3ObjectError.KeyParseError(it.message)
+        }.bind()
+        catch({
+            s3Client.deleteObject {
+                bucket = bucketName
+                key = objectName
+                versionId = version
+            }
+        }){ error->
+            when(error){
+                is S3Exception -> raise(DeleteS3ObjectError.S3StorageError(error))
+                else -> raise(DeleteS3ObjectError.Unexpected(error))
+            }
+        }
+    }
+    override suspend fun deleteObjects(objectKeys : List<String>) : Either<DeleteS3ObjectsError,Unit> = either {
+        val objectIdentifiers = objectKeys.map {
+            val (name,version) = parseKey(it).mapLeft { error ->
+                DeleteS3ObjectsError.KeyParseError(error.message)
+            }.bind()
+            ObjectIdentifier{
+                key = name
+                versionId = version
+            }
+        }
+        catch({
+            s3Client.deleteObjects{
+                bucket = bucketName
+                delete = Delete {
+                    objects = objectIdentifiers
+                }
+            }
+        }){ error->
+            when(error){
+                is S3Exception -> raise(DeleteS3ObjectsError.S3StorageError(error))
+                else -> raise(DeleteS3ObjectsError.Unexpected(error))
+            }
+        }
+    }
+    private fun parseKey(key : String) : Either<ObjectKeyParseError,Pair<String, String>> = either {
         val splitKey = key.split("?v=")
         if(splitKey.size != 2){
-            throw IllegalArgumentException("Key $key does not match pattern objectName.ext?v=versionID")
+            raise(ObjectKeyParseError("Key $key does not match pattern objectName.ext?v=versionID"))
         }
-        return Pair(splitKey[0], splitKey[1])
+        Pair(splitKey[0], splitKey[1])
     }
 }

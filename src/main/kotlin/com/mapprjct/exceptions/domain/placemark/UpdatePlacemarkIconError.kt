@@ -1,5 +1,6 @@
 package com.mapprjct.exceptions.domain.placemark
 
+import aws.sdk.kotlin.services.s3.model.S3Exception
 import com.mapprjct.model.dto.PlacemarkDTO
 import kotlinx.io.IOException
 import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
@@ -11,9 +12,7 @@ sealed interface UpdatePlacemarkIconError {
     data class VersionConflict(val newPlacemarkDTO: PlacemarkDTO) : UpdatePlacemarkIconError
     data class InvalidIconFormat(val allowedExtensions : List<String>) : UpdatePlacemarkIconError
 
-    data class Filesystem(val cause : IOException) : UpdatePlacemarkIconError
-
-    data object UnsupportedOperation : UpdatePlacemarkIconError
+    data class FileStorage(val cause : S3Exception) : UpdatePlacemarkIconError
     data object ConcurrentUpdate : UpdatePlacemarkIconError
 
     data class Database(val cause: ExposedSQLException) : UpdatePlacemarkIconError

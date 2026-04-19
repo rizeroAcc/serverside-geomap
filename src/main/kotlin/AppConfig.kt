@@ -1,7 +1,5 @@
 package com.mapprjct
 
-import com.mapprjct.database.storage.PlacemarkIconStorage
-
 class DatabaseConfig(
     val url : String,
     val username : String,

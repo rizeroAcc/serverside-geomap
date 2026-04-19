@@ -9,5 +9,6 @@ interface PlacemarkRepository {
     suspend fun findAllProjectPlacemarks(projectID : StringUUID) : List<PlacemarkDTO>
     suspend fun insert(placemark : PlacemarkDTO) : PlacemarkDTO
     suspend fun update(updatedPlacemark : PlacemarkDTO) : PlacemarkDTO?
+    suspend fun delete(placemark : PlacemarkDTO) : Int
     suspend fun findAllPlacemarkPhotos(placemarkId : StringUUID) : List<PlacemarkPhotoDTO>
 }
