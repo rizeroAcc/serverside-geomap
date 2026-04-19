@@ -14,8 +14,8 @@ import aws.smithy.kotlin.runtime.content.ByteStream
 import aws.smithy.kotlin.runtime.content.asByteStream
 import aws.smithy.kotlin.runtime.content.toByteArray
 import aws.smithy.kotlin.runtime.net.url.Url
-import com.mapprjct.com.mapprjct.database.storage.DefaultS3VersioningObjectStorage
-import com.mapprjct.com.mapprjct.database.storage.S3VersioningObjectStorage
+import com.mapprjct.database.storage.DefaultS3VersioningObjectStorage
+import com.mapprjct.database.storage.S3VersioningObjectStorage
 import com.mapprjct.exceptions.storage.s3.DeleteS3ObjectError
 import com.mapprjct.exceptions.storage.s3.GetS3ObjectError
 import com.mapprjct.getTestResourceAsChannel
